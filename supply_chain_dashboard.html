@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MISB ALSILA - Supply Chain Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding: 24px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 32px;
+        }
+
+        h1 {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #f0f9ff;
+        }
+
+        .subtitle {
+            color: #94a3b8;
+            font-size: 14px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: 12px 24px;
+            background-color: transparent;
+            color: #e2e8f0;
+            border: none;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .tab-btn:hover {
+            background-color: rgba(59, 130, 246, 0.1);
+        }
+
+        .tab-btn.active {
+            background-color: #3b82f6;
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .upload-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .upload-box {
+            background-color: #1e293b;
+            padding: 24px;
+            border-radius: 8px;
+            border: 2px dashed #475569;
+        }
+
+        .upload-box h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .upload-box input[type="file"] {
+            width: 100%;
+            padding: 8px;
+            background-color: #0f172a;
+            border: 1px solid #475569;
+            border-radius: 4px;
+            color: #e2e8f0;
+            cursor: pointer;
+        }
+
+        .upload-box p {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 8px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background-color: #1e293b;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+        }
+
+        .controls {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .control-group label {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .control-group select,
+        .control-group input[type="range"] {
+            padding: 8px 12px;
+            background-color: #0f172a;
+            border: 1px solid #475569;
+            border-radius: 4px;
+            color: #e2e8f0;
+            font-size: 14px;
+        }
+
+        .control-group input[type="range"] {
+            width: 200px;
+        }
+
+        button {
+            padding: 12px 24px;
+            background-color: #3b82f6;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background-color: #2563eb;
+            transform: translateY(-2px);
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            background-color: #1e293b;
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #cbd5e1;
+            border-bottom: 1px solid #475569;
+            background-color: #0f172a;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #334155;
+        }
+
+        tr:hover {
+            background-color: rgba(59, 130, 246, 0.05);
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            display: inline-block;
+            color: #fff;
+        }
+
+        .status-critical {
+            background-color: #ef4444;
+        }
+
+        .status-low {
+            background-color: #f97316;
+        }
+
+        .status-optimal {
+            background-color: #22c55e;
+        }
+
+        .status-high {
+            background-color: #3b82f6;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 48px 24px;
+            background-color: #1e293b;
+            border-radius: 8px;
+            color: #94a3b8;
+        }
+
+        .settings-grid {
+            background-color: #1e293b;
+            padding: 24px;
+            border-radius: 8px;
+            max-width: 600px;
+        }
+
+        .settings-grid h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 24px;
+        }
+
+        .settings-grid .control-group {
+            margin-bottom: 24px;
+        }
+
+        .settings-grid input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            background-color: #0f172a;
+            border: 1px solid #475569;
+            border-radius: 4px;
+            color: #e2e8f0;
+            font-size: 14px;
+        }
+
+        .supplier-list {
+            background-color: #0f172a;
+            padding: 16px;
+            border-radius: 6px;
+            border-left: 4px solid #f97316;
+            margin-top: 24px;
+        }
+
+        .supplier-item {
+            font-size: 12px;
+            color: #cbd5e1;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #334155;
+        }
+
+        .supplier-item:last-child {
+            border-bottom: none;
+        }
+
+        .supplier-item p {
+            margin: 4px 0;
+        }
+
+        .supplier-name {
+            font-weight: 600;
+            color: #e2e8f0;
+        }
+
+        .supplier-details {
+            color: #94a3b8;
+            font-size: 11px;
+        }
+
+        .analytics-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 16px;
+        }
+
+        .analytics-card {
+            background-color: #0f172a;
+            padding: 16px;
+            border-radius: 6px;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .analytics-card h4 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #e2e8f0;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #cbd5e1;
+            margin-top: 4px;
+            padding-top: 4px;
+            border-top: 1px solid #334155;
+        }
+
+        .metric:first-of-type {
+            border-top: none;
+            padding-top: 0;
+            margin-top: 0;
+        }
+
+        .metric-label {
+            color: #94a3b8;
+        }
+
+        .metric-value {
+            font-weight: 600;
+        }
+
+        .text-green {
+            color: #22c55e;
+        }
+
+        .text-blue {
+            color: #3b82f6;
+        }
+
+        .status-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .status-item {
+            padding: 12px;
+            background-color: #0f172a;
+            border-radius: 6px;
+            border-left: 4px solid;
+            text-align: center;
+        }
+
+        .status-item p {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-bottom: 4px;
+        }
+
+        .status-item h3 {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .status-critical-item {
+            border-left-color: #ef4444;
+        }
+
+        .status-critical-item h3 {
+            color: #ef4444;
+        }
+
+        .status-low-item {
+            border-left-color: #f97316;
+        }
+
+        .status-low-item h3 {
+            color: #f97316;
+        }
+
+        .status-optimal-item {
+            border-left-color: #22c55e;
+        }
+
+        .status-optimal-item h3 {
+            color: #22c55e;
+        }
+
+        .status-high-item {
+            border-left-color: #3b82f6;
+        }
+
+        .status-high-item h3 {
+            color: #3b82f6;
+        }
+
+        @media (max-width: 768px) {
+            .tabs {
+                gap: 8px;
+            }
+
+            .tab-btn {
+                padding: 10px 16px;
+                font-size: 12px;
+            }
+
+            table {
+                font-size: 11px;
+            }
+
+            th, td {
+                padding: 8px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>Supply Chain PO Management</h1>
+            <p class="subtitle">Manage purchases, inventory, and suppliers efficiently</p>
+        </header>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('dashboard')">DASHBOARD</button>
+            <button class="tab-btn" onclick="switchTab('inventory')">INVENTORY</button>
+            <button class="tab-btn" onclick="switchTab('po-generator')">PO GENERATOR</button>
+            <button class="tab-btn" onclick="switchTab('analytics')">ANALYTICS</button>
+            <button class="tab-btn" onclick="switchTab('settings')">SETTINGS</button>
+        </div>
+
+        <!-- Tab 1: Dashboard -->
+        <div id="dashboard" class="tab-content active">
+            <div class="upload-section">
+                <div class="upload-box">
+                    <h3>📤 Upload Sales Data (Last 3 Months)</h3>
+                    <input type="file" id="salesFile" accept=".csv,.xlsx,.xls" onchange="handleFileUpload('sales')">
+                    <p>Include: Date, Item Code, Purchases, Sales, Balance</p>
+                </div>
+
+                <div class="upload-box">
+                    <h3>📤 Upload Current Inventory</h3>
+                    <input type="file" id="inventoryFile" accept=".csv,.xlsx,.xls" onchange="handleFileUpload('inventory')">
+                    <p>Include: Item Code, Qty, Supplier, MOQ, Lead Time</p>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <p class="stat-label">Total Items</p>
+                    <p class="stat-value" id="statTotalItems">5</p>
+                </div>
+                <div class="stat-card">
+                    <p class="stat-label">Active Suppliers</p>
+                    <p class="stat-value" id="statSuppliers">4</p>
+                </div>
+                <div class="stat-card">
+                    <p class="stat-label">Pending POs</p>
+                    <p class="stat-value" id="statPendingPos" style="color: #f97316;">0</p>
+                </div>
+                <div class="stat-card">
+                    <p class="stat-label">Critical Items</p>
+                    <p class="stat-value" id="statCritical" style="color: #ef4444;">0</p>
+                </div>
+            </div>
+
+            <div>
+                <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">Inventory Status Summary</h3>
+                <div class="status-summary">
+                    <div class="status-item status-critical-item">
+                        <p>CRITICAL (< 10 days)</p>
+                        <h3 id="countCritical">0</h3>
+                    </div>
+                    <div class="status-item status-low-item">
+                        <p>LOW (10-20 days)</p>
+                        <h3 id="countLow">0</h3>
+                    </div>
+                    <div class="status-item status-optimal-item">
+                        <p>OPTIMAL (20-90 days)</p>
+                        <h3 id="countOptimal">0</h3>
+                    </div>
+                    <div class="status-item status-high-item">
+                        <p>HIGH (> 90 days)</p>
+                        <h3 id="countHigh">0</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: Inventory -->
+        <div id="inventory" class="tab-content">
+            <div class="controls">
+                <div class="control-group">
+                    <label>Filter by Supplier</label>
+                    <select id="supplierFilter" onchange="updateInventoryTable()">
+                        <option value="ALL">All Suppliers</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>Days Inventory Needed: <span id="invDaysDisplay">30</span></label>
+                    <input type="range" id="inventoryDays" min="7" max="90" value="30" onchange="updateInventoryTable(); document.getElementById('invDaysDisplay').textContent = this.value;">
+                </div>
+
+                <div class="control-group">
+                    <label>Days Safety Stock: <span id="safeDaysDisplay">7</span></label>
+                    <input type="range" id="safetyDays" min="3" max="30" value="7" onchange="updateInventoryTable(); document.getElementById('safeDaysDisplay').textContent = this.value;">
+                </div>
+            </div>
+
+            <div class="table-wrapper">
+                <table id="inventoryTable">
+                    <thead>
+                        <tr>
+                            <th>Item Code</th>
+                            <th>Item Name</th>
+                            <th style="text-align: center;">Current Stock</th>
+                            <th style="text-align: center;">Avg Daily</th>
+                            <th style="text-align: center;">Days Supply</th>
+                            <th style="text-align: center;">Status</th>
+                            <th>Supplier</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tab 3: PO Generator -->
+        <div id="po-generator" class="tab-content">
+            <div style="margin-bottom: 24px;">
+                <button onclick="generatePO()">+ Generate PO</button>
+            </div>
+
+            <div class="table-wrapper">
+                <table id="poTable">
+                    <thead>
+                        <tr>
+                            <th>PO ID</th>
+                            <th>Item</th>
+                            <th style="text-align: center;">Qty</th>
+                            <th style="text-align: center;">Container</th>
+                            <th style="text-align: center;">CBM</th>
+                            <th>Supplier</th>
+                            <th style="text-align: center;">Lead Time</th>
+                            <th>Required Date</th>
+                            <th style="text-align: center;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <div id="poEmpty" class="empty-state" style="display: none;">
+                <p>Click "Generate PO" to create purchase orders based on current settings</p>
+            </div>
+        </div>
+
+        <!-- Tab 4: Analytics -->
+        <div id="analytics" class="tab-content">
+            <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">4-Month Sales Analysis</h3>
+            <div class="analytics-cards" id="analyticsCards">
+                <div class="empty-state" style="grid-column: 1 / -1;">
+                    <p>Upload sales data to see analytics</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 5: Settings -->
+        <div id="settings" class="tab-content">
+            <div class="settings-grid">
+                <h3>Supply Chain Settings</h3>
+
+                <div class="control-group">
+                    <label>Default Inventory Days</label>
+                    <input type="number" id="defaultInvDays" value="30" min="7" max="90">
+                    <p style="font-size: 12px; color: #94a3b8; margin-top: 4px;">Number of days of inventory to maintain</p>
+                </div>
+
+                <div class="control-group">
+                    <label>Safety Stock Days</label>
+                    <input type="number" id="defaultSafeDays" value="7" min="3" max="30">
+                    <p style="font-size: 12px; color: #94a3b8; margin-top: 4px;">Minimum safety stock buffer days</p>
+                </div>
+
+                <div class="supplier-list">
+                    <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 8px; color: #e2e8f0;">Supplier Summary</h4>
+                    <div id="supplierSummary"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sample Data
+        const sampleSuppliers = [
+            { code: 'V20183', name: 'YU DAT BS', leadTime: 80, type: '40ft' },
+            { code: 'V20184', name: 'YU DAT CJ', leadTime: 60, type: '40ft' },
+            { code: 'V20185', name: 'Local Supplier A', leadTime: 7, type: '20ft' },
+            { code: 'V20186', name: 'Local Supplier B', leadTime: 5, type: '20ft' },
+        ];
+
+        const sampleInventoryData = [
+            { code: 321601, name: 'Richina Basil Seed-Mango-290ml X 24', currentStock: 2500, moq: 450, supplier: 'V20183', container: '40ft', cbm: 0.00128, avgDaily: 85 },
+            { code: 321602, name: 'Richina Basil Seed-Strawberry-290ml X 24', currentStock: 1800, moq: 450, supplier: 'V20183', container: '40ft', cbm: 0.00128, avgDaily: 62 },
+            { code: 321614, name: 'Richina Air Kelapa Tall Can-330ml X 24', currentStock: 3200, moq: 900, supplier: 'V20184', container: '40ft', cbm: 0.00048, avgDaily: 110 },
+            { code: 101204, name: 'Gear Energy Drinks (Pet)-250ml X 24', currentStock: 85723, moq: 450, supplier: 'V20183', container: '40ft', cbm: 0.001288, avgDaily: 3059 },
+            { code: 120405, name: 'Farm Fresh Chakki Fresh (Atta)-5Kg X 4', currentStock: 2472, moq: 1000, supplier: 'V20185', container: '20ft', cbm: 0.025, avgDaily: 180 },
+        ];
+
+        const sampleSalesData = [
+            { code: 321601, month: 'Feb 2026', inc: 2100, dec: 1200, bal: 2500 },
+            { code: 321601, month: 'Jan 2026', inc: 1800, dec: 950, bal: 1350 },
+            { code: 321601, month: 'Dec 2025', inc: 2200, dec: 1100, bal: 500 },
+        ];
+
+        let suppliers = [...sampleSuppliers];
+        let inventory = [...sampleInventoryData];
+        let salesData = [...sampleSalesData];
+        let poOrders = [];
+        let selectedSupplier = 'ALL';
+
+        // Initialize
+        function init() {
+            updateSupplierFilter();
+            updateSupplierSummary();
+            updateInventoryTable();
+            updateStats();
+        }
+
+        // Tab switching
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // File upload handler
+        function handleFileUpload(type) {
+            alert(`File upload for ${type} clicked.\nNote: In production, this would parse CSV/XLSX files.\nCurrently using sample data for demonstration.`);
+        }
+
+        // Update supplier filter
+        function updateSupplierFilter() {
+            const select = document.getElementById('supplierFilter');
+            const uniqueSuppliers = [...new Set(inventory.map(i => i.supplier))];
+            
+            uniqueSuppliers.forEach(supplierCode => {
+                const supplier = suppliers.find(s => s.code === supplierCode);
+                if (supplier && !select.querySelector(`option[value="${supplierCode}"]`)) {
+                    const option = document.createElement('option');
+                    option.value = supplierCode;
+                    option.textContent = supplier.name;
+                    select.appendChild(option);
+                }
+            });
+        }
+
+        // Get status
+        function getStatus(daysSupply) {
+            if (daysSupply < 10) return 'critical';
+            if (daysSupply < 20) return 'low';
+            if (daysSupply > 90) return 'high';
+            return 'optimal';
+        }
+
+        // Update inventory table
+        function updateInventoryTable() {
+            const supplier = document.getElementById('supplierFilter').value;
+            const tbody = document.querySelector('#inventoryTable tbody');
+            tbody.innerHTML = '';
+
+            const filtered = supplier === 'ALL' ? inventory : inventory.filter(i => i.supplier === supplier);
+
+            filtered.forEach(item => {
+                const daysSupply = (item.currentStock / item.avgDaily).toFixed(1);
+                const status = getStatus(daysSupply);
+                const statusLabel = status.toUpperCase();
+                const statusColor = `status-${status}`;
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${item.code}</td>
+                    <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis;">${item.name}</td>
+                    <td style="text-align: center;">${item.currentStock.toLocaleString()}</td>
+                    <td style="text-align: center;">${item.avgDaily}</td>
+                    <td style="text-align: center; color: ${getStatusColor(status)}; font-weight: 600;">${daysSupply} days</td>
+                    <td style="text-align: center;"><span class="status-badge ${statusColor}">${statusLabel}</span></td>
+                    <td style="font-size: 12px;">${suppliers.find(s => s.code === item.supplier)?.name || ''}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function getStatusColor(status) {
+            const colors = {
+                critical: '#ef4444',
+                low: '#f97316',
+                optimal: '#22c55e',
+                high: '#3b82f6'
+            };
+            return colors[status] || '#e2e8f0';
+        }
+
+        // Calculate PO
+        function calculatePOQuantity(item) {
+            const supplier = suppliers.find(s => s.code === item.supplier);
+            if (!supplier) return 0;
+
+            const inventoryDays = parseInt(document.getElementById('inventoryDays').value);
+            const safetyDays = parseInt(document.getElementById('safetyDays').value);
+            const daysToOrder = inventoryDays + supplier.leadTime + safetyDays;
+            
+            const requiredQty = Math.ceil((item.avgDaily * daysToOrder) / item.moq) * item.moq;
+            return Math.max(requiredQty - item.currentStock, 0);
+        }
+
+        // Generate PO
+        function generatePO() {
+            const inventoryDays = parseInt(document.getElementById('inventoryDays').value);
+            
+            const newPOs = inventory.map(item => {
+                const supplier = suppliers.find(s => s.code === item.supplier);
+                const poQty = calculatePOQuantity(item);
+                
+                if (poQty === 0) return null;
+
+                const containers = Math.ceil(poQty / item.moq);
+                const requiredDate = new Date();
+                requiredDate.setDate(requiredDate.getDate() + supplier.leadTime);
+
+                return {
+                    id: `PO-${Date.now()}-${item.code}`,
+                    itemCode: item.code,
+                    itemName: item.name,
+                    supplier: supplier?.name,
+                    supplierCode: item.supplier,
+                    quantity: poQty,
+                    moq: item.moq,
+                    containerType: item.container,
+                    containers: containers,
+                    cbmTotal: (poQty / item.moq) * item.cbm,
+                    leadTime: supplier?.leadTime,
+                    requiredDate: requiredDate.toISOString().split('T')[0],
+                    status: 'Pending',
+                };
+            }).filter(po => po !== null);
+
+            poOrders = newPOs;
+            updatePOTable();
+            updateStats();
+        }
+
+        // Update PO table
+        function updatePOTable() {
+            const tbody = document.querySelector('#poTable tbody');
+            const emptyDiv = document.getElementById('poEmpty');
+            
+            if (poOrders.length === 0) {
+                tbody.innerHTML = '';
+                emptyDiv.style.display = 'block';
+                return;
+            }
+
+            emptyDiv.style.display = 'none';
+            tbody.innerHTML = '';
+
+            poOrders.forEach(po => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td style="color: #3b82f6; font-weight: 600;">${po.id.substring(0, 15)}...</td>
+                    <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; font-size: 11px;">${po.itemCode}</td>
+                    <td style="text-align: center; font-weight: 600;">${po.quantity.toLocaleString()}</td>
+                    <td style="text-align: center;">${po.containerType} x${po.containers}</td>
+                    <td style="text-align: center;">${po.cbmTotal.toFixed(2)}</td>
+                    <td>${po.supplier}</td>
+                    <td style="text-align: center;">${po.leadTime} days</td>
+                    <td>${po.requiredDate}</td>
+                    <td style="text-align: center;"><span class="status-badge" style="background-color: #22c55e;">PENDING</span></td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Update supplier summary
+        function updateSupplierSummary() {
+            const summary = document.getElementById('supplierSummary');
+            summary.innerHTML = '';
+
+            suppliers.forEach(supplier => {
+                const div = document.createElement('div');
+                div.className = 'supplier-item';
+                div.innerHTML = `
+                    <p class="supplier-name">${supplier.name} (${supplier.code})</p>
+                    <p class="supplier-details">Lead Time: ${supplier.leadTime} days | Container: ${supplier.type}</p>
+                `;
+                summary.appendChild(div);
+            });
+        }
+
+        // Update stats
+        function updateStats() {
+            const critical = inventory.filter(i => (i.currentStock / i.avgDaily) < 10).length;
+            const low = inventory.filter(i => {
+                const days = i.currentStock / i.avgDaily;
+                return days >= 10 && days < 20;
+            }).length;
+            const optimal = inventory.filter(i => {
+                const days = i.currentStock / i.avgDaily;
+                return days >= 20 && days <= 90;
+            }).length;
+            const high = inventory.filter(i => (i.currentStock / i.avgDaily) > 90).length;
+
+            document.getElementById('statTotalItems').textContent = inventory.length;
+            document.getElementById('statSuppliers').textContent = suppliers.length;
+            document.getElementById('statPendingPos').textContent = poOrders.filter(po => po.status === 'Pending').length;
+            document.getElementById('statCritical').textContent = critical;
+
+            document.getElementById('countCritical').textContent = critical;
+            document.getElementById('countLow').textContent = low;
+            document.getElementById('countOptimal').textContent = optimal;
+            document.getElementById('countHigh').textContent = high;
+        }
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
