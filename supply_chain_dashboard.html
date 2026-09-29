@@ -428,6 +428,75 @@
             color: #3b82f6;
         }
 
+        .status-nosales {
+            background-color: #64748b;
+        }
+
+        .status-nosales-item {
+            border-left-color: #64748b;
+        }
+
+        .status-nosales-item h3 {
+            color: #94a3b8;
+        }
+
+        .upload-status {
+            margin-top: 12px;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .upload-status .msg-ok {
+            color: #22c55e;
+        }
+
+        .upload-status .msg-warn {
+            color: #f59e0b;
+        }
+
+        .upload-status .msg-error {
+            color: #ef4444;
+        }
+
+        .upload-status ul {
+            margin: 4px 0 0 18px;
+            color: #94a3b8;
+        }
+
+        .data-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 24px;
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        .data-actions a {
+            color: #60a5fa;
+            cursor: pointer;
+        }
+
+        button.secondary {
+            background-color: #334155;
+        }
+
+        button.secondary:hover {
+            background-color: #475569;
+        }
+
+        .po-summary {
+            margin-bottom: 16px;
+            font-size: 13px;
+            color: #cbd5e1;
+        }
+
+        .est {
+            color: #f59e0b;
+            font-size: 11px;
+        }
+
         @media (max-width: 768px) {
             .tabs {
                 gap: 8px;
@@ -462,27 +531,46 @@
 
         <!-- Tabs -->
         <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('dashboard')">DASHBOARD</button>
-            <button class="tab-btn" onclick="switchTab('inventory')">INVENTORY</button>
-            <button class="tab-btn" onclick="switchTab('po-generator')">PO GENERATOR</button>
-            <button class="tab-btn" onclick="switchTab('analytics')">ANALYTICS</button>
-            <button class="tab-btn" onclick="switchTab('settings')">SETTINGS</button>
+            <button class="tab-btn active" onclick="switchTab('dashboard', this)">DASHBOARD</button>
+            <button class="tab-btn" onclick="switchTab('inventory', this)">INVENTORY</button>
+            <button class="tab-btn" onclick="switchTab('po-generator', this)">PO GENERATOR</button>
+            <button class="tab-btn" onclick="switchTab('analytics', this)">ANALYTICS</button>
+            <button class="tab-btn" onclick="switchTab('settings', this)">SETTINGS</button>
         </div>
 
         <!-- Tab 1: Dashboard -->
         <div id="dashboard" class="tab-content active">
             <div class="upload-section">
                 <div class="upload-box">
-                    <h3>📤 Upload Sales Data (Last 3 Months)</h3>
-                    <input type="file" id="salesFile" accept=".csv,.xlsx,.xls" onchange="handleFileUpload('sales')">
-                    <p>Include: Date, Item Code, Purchases, Sales, Balance</p>
+                    <h3>📤 Upload Current Inventory</h3>
+                    <input type="file" id="inventoryFile" accept=".csv,.txt,.xlsx,.xls,.xlsm" onchange="handleFileUpload('inventory', this)">
+                    <p>Required: Item Code, Current Qty (cartons). Recommended: Supplier Code, MOQ, Lead Time, Container Type, 20ft/40ft capacity, CBM, Base Qty</p>
+                    <div class="upload-status" id="inventoryStatus"></div>
                 </div>
 
                 <div class="upload-box">
-                    <h3>📤 Upload Current Inventory</h3>
-                    <input type="file" id="inventoryFile" accept=".csv,.xlsx,.xls" onchange="handleFileUpload('inventory')">
-                    <p>Include: Item Code, Qty, Supplier, MOQ, Lead Time</p>
+                    <h3>📤 Upload Sales Data (e.g. last 3 months)</h3>
+                    <input type="file" id="salesFile" accept=".csv,.txt,.xlsx,.xls,.xlsm" onchange="handleFileUpload('sales', this)">
+                    <p>Required: Item Code, Sales (cartons), and Date (YYYY-MM-DD or DD/MM/YYYY) or Month (e.g. Feb 2026)</p>
+                    <div class="upload-status" id="salesStatus"></div>
                 </div>
+
+                <div class="upload-box">
+                    <h3>📤 Upload Suppliers (optional)</h3>
+                    <input type="file" id="suppliersFile" accept=".csv,.txt,.xlsx,.xls,.xlsm" onchange="handleFileUpload('suppliers', this)">
+                    <p>Required: Supplier Code or Name, Lead Time (days). Optional: Container Type</p>
+                    <div class="upload-status" id="suppliersStatus"></div>
+                </div>
+            </div>
+
+            <div class="data-actions">
+                <span id="dataSourceLabel">Showing sample data.</span>
+                <button class="secondary" onclick="resetToSample()">Reset to sample data</button>
+                <span>CSV templates:
+                    <a onclick="downloadTemplate('inventory')">inventory</a> ·
+                    <a onclick="downloadTemplate('sales')">sales</a> ·
+                    <a onclick="downloadTemplate('suppliers')">suppliers</a>
+                </span>
             </div>
 
             <div class="stats-grid">
@@ -523,6 +611,10 @@
                         <p>HIGH (> 90 days)</p>
                         <h3 id="countHigh">0</h3>
                     </div>
+                    <div class="status-item status-nosales-item">
+                        <p>NO SALES DATA</p>
+                        <h3 id="countNoSales">0</h3>
+                    </div>
                 </div>
             </div>
         </div>
@@ -539,12 +631,12 @@
 
                 <div class="control-group">
                     <label>Days Inventory Needed: <span id="invDaysDisplay">30</span></label>
-                    <input type="range" id="inventoryDays" min="7" max="90" value="30" onchange="updateInventoryTable(); document.getElementById('invDaysDisplay').textContent = this.value;">
+                    <input type="range" id="inventoryDays" min="7" max="90" value="30" oninput="onPlanningDaysChange()">
                 </div>
 
                 <div class="control-group">
                     <label>Days Safety Stock: <span id="safeDaysDisplay">7</span></label>
-                    <input type="range" id="safetyDays" min="3" max="30" value="7" onchange="updateInventoryTable(); document.getElementById('safeDaysDisplay').textContent = this.value;">
+                    <input type="range" id="safetyDays" min="3" max="30" value="7" oninput="onPlanningDaysChange()">
                 </div>
             </div>
 
@@ -554,8 +646,8 @@
                         <tr>
                             <th>Item Code</th>
                             <th>Item Name</th>
-                            <th style="text-align: center;">Current Stock</th>
-                            <th style="text-align: center;">Avg Daily</th>
+                            <th style="text-align: center;">Current Stock (ctn)</th>
+                            <th style="text-align: center;">Avg Daily (ctn)</th>
                             <th style="text-align: center;">Days Supply</th>
                             <th style="text-align: center;">Status</th>
                             <th>Supplier</th>
@@ -572,14 +664,17 @@
                 <button onclick="generatePO()">+ Generate PO</button>
             </div>
 
+            <div class="po-summary" id="poSummary"></div>
+
             <div class="table-wrapper">
                 <table id="poTable">
                     <thead>
                         <tr>
                             <th>PO ID</th>
                             <th>Item</th>
-                            <th style="text-align: center;">Qty</th>
-                            <th style="text-align: center;">Container</th>
+                            <th style="text-align: center;">Qty (ctn)</th>
+                            <th style="text-align: center;">Containers</th>
+                            <th style="text-align: center;">Fill</th>
                             <th style="text-align: center;">CBM</th>
                             <th>Supplier</th>
                             <th style="text-align: center;">Lead Time</th>
@@ -613,14 +708,26 @@
 
                 <div class="control-group">
                     <label>Default Inventory Days</label>
-                    <input type="number" id="defaultInvDays" value="30" min="7" max="90">
+                    <input type="number" id="defaultInvDays" value="30" min="7" max="90" onchange="applySettingsDays()">
                     <p style="font-size: 12px; color: #94a3b8; margin-top: 4px;">Number of days of inventory to maintain</p>
                 </div>
 
                 <div class="control-group">
                     <label>Safety Stock Days</label>
-                    <input type="number" id="defaultSafeDays" value="7" min="3" max="30">
+                    <input type="number" id="defaultSafeDays" value="7" min="3" max="30" onchange="applySettingsDays()">
                     <p style="font-size: 12px; color: #94a3b8; margin-top: 4px;">Minimum safety stock buffer days</p>
+                </div>
+
+                <div class="control-group">
+                    <label>Usable volume of a 20ft container (CBM)</label>
+                    <input type="number" id="usableVol20" value="28" min="1" step="0.5" onchange="refreshAll()">
+                    <p style="font-size: 12px; color: #94a3b8; margin-top: 4px;">Only used to estimate capacity for items without a 20ft capacity value</p>
+                </div>
+
+                <div class="control-group">
+                    <label>Usable volume of a 40ft container (CBM)</label>
+                    <input type="number" id="usableVol40" value="58" min="1" step="0.5" onchange="refreshAll()">
+                    <p style="font-size: 12px; color: #94a3b8; margin-top: 4px;">Only used to estimate capacity for items without a 40ft capacity value</p>
                 </div>
 
                 <div class="supplier-list">
@@ -632,6 +739,10 @@
     </div>
 
     <script>
+        // All quantities (stock, sales, MOQ, container capacity, PO qty) are in cartons.
+        // cbm is volume per piece and baseQty is pieces per carton, as in the ItemData sheet
+        // (e.g. 2,100 ctn x 24 pcs x 0.00128 m3 = 64.5 m3, one 40ft container).
+
         // Sample Data
         const sampleSuppliers = [
             { code: 'V20183', name: 'YU DAT BS', leadTime: 80, type: '40ft' },
@@ -641,94 +752,683 @@
         ];
 
         const sampleInventoryData = [
-            { code: 321601, name: 'Richina Basil Seed-Mango-290ml X 24', currentStock: 2500, moq: 450, supplier: 'V20183', container: '40ft', cbm: 0.00128, avgDaily: 85 },
-            { code: 321602, name: 'Richina Basil Seed-Strawberry-290ml X 24', currentStock: 1800, moq: 450, supplier: 'V20183', container: '40ft', cbm: 0.00128, avgDaily: 62 },
-            { code: 321614, name: 'Richina Air Kelapa Tall Can-330ml X 24', currentStock: 3200, moq: 900, supplier: 'V20184', container: '40ft', cbm: 0.00048, avgDaily: 110 },
-            { code: 101204, name: 'Gear Energy Drinks (Pet)-250ml X 24', currentStock: 85723, moq: 450, supplier: 'V20183', container: '40ft', cbm: 0.001288, avgDaily: 3059 },
-            { code: 120405, name: 'Farm Fresh Chakki Fresh (Atta)-5Kg X 4', currentStock: 2472, moq: 1000, supplier: 'V20185', container: '20ft', cbm: 0.025, avgDaily: 180 },
+            { code: '321601', name: 'Richina Basil Seed-Mango-290ml X 24', currentStock: 2500, moq: 450, supplier: 'V20183', container: '40ft', baseQty: 24, cbm: 0.00128, cap20: 1000, cap40: 2100, avgDaily: 85 },
+            { code: '321602', name: 'Richina Basil Seed-Strawberry-290ml X 24', currentStock: 1800, moq: 450, supplier: 'V20183', container: '40ft', baseQty: 24, cbm: 0.00128, cap20: 1000, cap40: 2100, avgDaily: 62 },
+            { code: '321614', name: 'Richina Air Kelapa Tall Can-330ml X 24', currentStock: 3200, moq: 900, supplier: 'V20184', container: '40ft', baseQty: 24, cbm: 0.00048, avgDaily: 110 },
+            { code: '101204', name: 'Gear Energy Drinks (Pet)-250ml X 24', currentStock: 85723, moq: 450, supplier: 'V20183', container: '40ft', baseQty: 24, cbm: 0.001288, avgDaily: 3059 },
+            { code: '120405', name: 'Farm Fresh Chakki Fresh (Atta)-5Kg X 4', currentStock: 2472, moq: 1000, supplier: 'V20185', container: '20ft', baseQty: 4, cbm: 0.025, avgDaily: 180 },
         ];
 
-        const sampleSalesData = [
-            { code: 321601, month: 'Feb 2026', inc: 2100, dec: 1200, bal: 2500 },
-            { code: 321601, month: 'Jan 2026', inc: 1800, dec: 950, bal: 1350 },
-            { code: 321601, month: 'Dec 2025', inc: 2200, dec: 1100, bal: 500 },
-        ];
-
-        let suppliers = [...sampleSuppliers];
-        let inventory = [...sampleInventoryData];
-        let salesData = [...sampleSalesData];
+        let suppliers = sampleSuppliers.map(s => ({ ...s }));
+        let inventory = sampleInventoryData.map(i => ({ ...i }));
+        let salesStats = null; // Map of item code -> { totalSales, avgDaily }, from an uploaded sales file
+        let salesPeriod = null; // { days, label }
         let poOrders = [];
-        let selectedSupplier = 'ALL';
+        let poGenerated = false;
+        const loadedFiles = { inventory: null, sales: null, suppliers: null };
 
-        // Initialize
-        function init() {
-            updateSupplierFilter();
-            updateSupplierSummary();
-            updateInventoryTable();
-            updateStats();
+        // ---------- Helpers ----------
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         }
 
-        // Tab switching
-        function switchTab(tabName) {
-            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            
-            document.getElementById(tabName).classList.add('active');
-            event.target.classList.add('active');
+        function normHeader(value) {
+            return String(value ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
         }
 
-        // File upload handler
-        function handleFileUpload(type) {
-            alert(`File upload for ${type} clicked.\nNote: In production, this would parse CSV/XLSX files.\nCurrently using sample data for demonstration.`);
+        function normCode(value) {
+            if (value === null || value === undefined) return '';
+            if (typeof value === 'number') return Number.isInteger(value) ? String(value) : String(value);
+            return String(value).trim().replace(/^(\d+)\.0+$/, '$1');
         }
 
-        // Update supplier filter
-        function updateSupplierFilter() {
-            const select = document.getElementById('supplierFilter');
-            const uniqueSuppliers = [...new Set(inventory.map(i => i.supplier))];
-            
-            uniqueSuppliers.forEach(supplierCode => {
-                const supplier = suppliers.find(s => s.code === supplierCode);
-                if (supplier && !select.querySelector(`option[value="${supplierCode}"]`)) {
-                    const option = document.createElement('option');
-                    option.value = supplierCode;
-                    option.textContent = supplier.name;
-                    select.appendChild(option);
-                }
-            });
+        function parseNum(value) {
+            if (typeof value === 'number') return value;
+            const s = String(value ?? '').trim().replace(/,/g, '');
+            if (s === '') return NaN;
+            return Number(s);
         }
 
-        // Get status
+        function normContainerType(value) {
+            const s = String(value ?? '').toLowerCase();
+            if (s.includes('40')) return '40ft';
+            if (s.includes('20')) return '20ft';
+            return '';
+        }
+
+        function formatNum(n, digits = 0) {
+            return Number(n).toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+        }
+
+        // ---------- Calculations ----------
+
+        function getSettings() {
+            return {
+                inventoryDays: parseInt(document.getElementById('inventoryDays').value, 10),
+                safetyDays: parseInt(document.getElementById('safetyDays').value, 10),
+                vol20: parseFloat(document.getElementById('usableVol20').value) || 28,
+                vol40: parseFloat(document.getElementById('usableVol40').value) || 58,
+            };
+        }
+
+        function findSupplier(item) {
+            const key = String(item.supplier || '').toLowerCase();
+            const name = String(item.supplierName || '').toLowerCase();
+            return suppliers.find(s => key && String(s.code).toLowerCase() === key)
+                || suppliers.find(s => name && String(s.name).toLowerCase() === name)
+                || suppliers.find(s => key && String(s.name).toLowerCase() === key)
+                || null;
+        }
+
+        function supplierKey(item) {
+            const supplier = findSupplier(item);
+            return supplier ? supplier.code : (item.supplier || item.supplierName || '');
+        }
+
+        function avgDailyOf(item) {
+            if (salesStats && salesStats.has(item.code)) return salesStats.get(item.code).avgDaily;
+            return item.avgDaily > 0 ? item.avgDaily : 0;
+        }
+
+        function leadTimeOf(item) {
+            if (item.leadTime !== null && item.leadTime !== undefined && !isNaN(item.leadTime)) return item.leadTime;
+            const supplier = findSupplier(item);
+            if (supplier && supplier.leadTime !== null && supplier.leadTime !== undefined && !isNaN(supplier.leadTime)) return supplier.leadTime;
+            return null;
+        }
+
+        // Days of stock on hand, or null when the item has no sales to divide by.
+        function daysSupplyOf(item) {
+            const avg = avgDailyOf(item);
+            return avg > 0 ? item.currentStock / avg : null;
+        }
+
         function getStatus(daysSupply) {
+            if (daysSupply === null) return 'nosales';
             if (daysSupply < 10) return 'critical';
             if (daysSupply < 20) return 'low';
             if (daysSupply > 90) return 'high';
             return 'optimal';
         }
 
-        // Update inventory table
+        function cbmPerCarton(item) {
+            if (item.cbmCarton > 0) return item.cbmCarton;
+            if (item.cbm > 0) return item.cbm * (item.baseQty > 0 ? item.baseQty : 1);
+            return 0;
+        }
+
+        // Cartons per container: the item's own value, or an estimate from its carton volume.
+        function containerCapacity(item, type, settings) {
+            const explicit = type === '20ft' ? item.cap20 : item.cap40;
+            if (explicit > 0) return { cap: explicit, estimated: false };
+            const cbm = cbmPerCarton(item);
+            if (cbm > 0) {
+                const cap = Math.floor((type === '20ft' ? settings.vol20 : settings.vol40) / cbm);
+                if (cap > 0) return { cap, estimated: true };
+            }
+            return null;
+        }
+
+        // Uses the item's (or its supplier's) container type when set; otherwise fills 40ft
+        // containers and ships the remainder in a 20ft when it fits.
+        function planContainers(qty, item, settings) {
+            const supplier = findSupplier(item);
+            const preferred = normContainerType(item.container) || normContainerType(supplier?.type);
+            const c20 = containerCapacity(item, '20ft', settings);
+            const c40 = containerCapacity(item, '40ft', settings);
+            if (!c20 && !c40) return null;
+
+            let n20 = 0, n40 = 0;
+            if ((preferred === '20ft' && c20) || !c40) {
+                n20 = Math.ceil(qty / c20.cap);
+            } else if (preferred === '40ft' || !c20) {
+                n40 = Math.ceil(qty / c40.cap);
+            } else {
+                n40 = Math.floor(qty / c40.cap);
+                const remainder = qty - n40 * c40.cap;
+                if (remainder > 0) {
+                    if (remainder <= c20.cap) n20 = 1; else n40 += 1;
+                }
+            }
+
+            const capacity = n20 * (c20 ? c20.cap : 0) + n40 * (c40 ? c40.cap : 0);
+            const parts = [];
+            if (n40) parts.push(`${n40} × 40ft`);
+            if (n20) parts.push(`${n20} × 20ft`);
+            return {
+                n20,
+                n40,
+                label: parts.join(' + '),
+                fill: capacity > 0 ? qty / capacity : 0,
+                estimated: (n20 > 0 && c20.estimated) || (n40 > 0 && c40.estimated),
+            };
+        }
+
+        function calculatePOQuantity(item, settings = getSettings()) {
+            const avgDaily = avgDailyOf(item);
+            if (avgDaily <= 0) return 0;
+            const moq = item.moq > 0 ? item.moq : 1;
+            const daysToOrder = settings.inventoryDays + (leadTimeOf(item) ?? 0) + settings.safetyDays;
+            const requiredQty = Math.ceil((avgDaily * daysToOrder) / moq) * moq;
+            return Math.max(requiredQty - item.currentStock, 0);
+        }
+
+        // ---------- File parsing ----------
+
+        const INVENTORY_SPEC = {
+            fields: {
+                code: ['itemcode', 'code', 'sku', 'itemno'],
+                name: ['itemname', 'name', 'description', 'itemdescription', 'product'],
+                currentStock: ['currentqty', 'currentstock', 'currentquantity', 'qtyctn', 'qty', 'quantity', 'stock', 'onhand', 'balance'],
+                supplier: ['suppliercode', 'vendorcode', 'supplier', 'vendor'],
+                supplierName: ['suppliername', 'vendorname'],
+                moq: ['moq', 'minorderqty', 'minimumorderqty'],
+                leadTime: ['leadtime', 'leadtimedays', 'transittime', 'transittimedays', 'leaddays'],
+                container: ['containertype', 'container'],
+                cbm: ['cbm', 'cbmperunit', 'cbmperpiece', 'cbmpcs'],
+                cbmCarton: ['cbmperctn', 'cbmpercarton', 'cbmctn'],
+                baseQty: ['baseqty', 'pcsperctn', 'unitspercarton', 'packsize'],
+                cap20: ['20ft', 'capacity20ft', '20ftcapacity', 'cap20', 'ctnper20ft'],
+                cap40: ['40ft', 'capacity40ft', '40ftcapacity', 'cap40', 'ctnper40ft'],
+                avgDaily: ['avgdaily', 'avgdailysales', 'dailysales'],
+            },
+            required: [['code'], ['currentStock']],
+        };
+
+        const SALES_SPEC = {
+            fields: {
+                code: ['itemcode', 'code', 'sku', 'itemno'],
+                date: ['date', 'day', 'transactiondate', 'salesdate'],
+                month: ['month', 'period'],
+                sales: ['sales', 'dec', 'qtysold', 'sold', 'salesqty', 'out'],
+            },
+            required: [['code'], ['sales'], ['date', 'month']],
+        };
+
+        const SUPPLIER_SPEC = {
+            fields: {
+                code: ['suppliercode', 'vendorcode', 'code'],
+                name: ['suppliername', 'vendorname', 'name', 'supplier'],
+                leadTime: ['leadtime', 'leadtimedays', 'transittime', 'transittimedays', 'leaddays'],
+                type: ['containertype', 'container', 'type'],
+            },
+            required: [['code', 'name'], ['leadTime']],
+        };
+
+        const FIELD_LABELS = {
+            code: 'Item_Code', currentStock: 'Current_Qty', sales: 'Sales', date: 'Date', month: 'Month',
+            leadTime: 'Lead_Time', name: 'Supplier_Name',
+        };
+
+        function parseCSV(text) {
+            text = text.replace(/^﻿/, '');
+            const firstLine = text.split(/\r?\n/).find(l => l.trim() !== '') || '';
+            const delimiter = [',', ';', '\t'].reduce((best, d) =>
+                firstLine.split(d).length > firstLine.split(best).length ? d : best, ',');
+
+            const rows = [];
+            let row = [], field = '', inQuotes = false;
+            for (let i = 0; i < text.length; i++) {
+                const c = text[i];
+                if (inQuotes) {
+                    if (c === '"' && text[i + 1] === '"') { field += '"'; i++; }
+                    else if (c === '"') inQuotes = false;
+                    else field += c;
+                } else if (c === '"') {
+                    inQuotes = true;
+                } else if (c === delimiter) {
+                    row.push(field); field = '';
+                } else if (c === '\n' || c === '\r') {
+                    if (c === '\r' && text[i + 1] === '\n') i++;
+                    row.push(field); rows.push(row); row = []; field = '';
+                } else {
+                    field += c;
+                }
+            }
+            if (field !== '' || row.length) { row.push(field); rows.push(row); }
+            return rows;
+        }
+
+        function loadSheetJS() {
+            if (window.XLSX) return Promise.resolve();
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+                script.onload = resolve;
+                script.onerror = () => reject(new Error('Could not load the Excel reader (it needs an internet connection). Save the sheet as CSV and upload that instead.'));
+                document.head.appendChild(script);
+            });
+        }
+
+        // Returns [{ sheetName, rows }] where rows is an array of arrays of cell values.
+        async function readTables(file) {
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (['xlsx', 'xls', 'xlsm'].includes(ext)) {
+                await loadSheetJS();
+                const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true });
+                return workbook.SheetNames.map(sheetName => ({
+                    sheetName,
+                    rows: XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, raw: true, defval: '' }),
+                }));
+            }
+            return [{ sheetName: null, rows: parseCSV(await file.text()) }];
+        }
+
+        function mapColumns(headerRow, spec) {
+            const map = {};
+            const headers = headerRow.map(normHeader);
+            Object.entries(spec.fields).forEach(([field, aliases]) => {
+                for (const alias of aliases) {
+                    const index = headers.findIndex((h, j) => h === alias && !Object.values(map).includes(j));
+                    if (index !== -1) { map[field] = index; break; }
+                }
+            });
+            return map;
+        }
+
+        function missingGroups(map, spec) {
+            return spec.required.filter(group => !group.some(field => field in map));
+        }
+
+        // Finds the header row (within the first 15 rows of any sheet) that has all required columns.
+        function locateTable(tables, spec) {
+            let best = null;
+            for (const { sheetName, rows } of tables) {
+                for (let i = 0; i < Math.min(15, rows.length); i++) {
+                    const map = mapColumns(rows[i], spec);
+                    const missing = missingGroups(map, spec);
+                    if (missing.length === 0) return { sheetName, rows, headerIndex: i, map };
+                    const score = Object.keys(map).length;
+                    if (!best || score > best.score) best = { score, missing, headers: rows[i], sheetName };
+                }
+            }
+            const missingText = (best ? best.missing : spec.required)
+                .map(group => group.map(f => FIELD_LABELS[f] || f).join(' or ')).join(', ');
+            const found = best ? best.headers.filter(h => String(h).trim() !== '').join(', ') : 'none';
+            throw new Error(`Missing required column(s): ${missingText}. Columns found${best && best.sheetName ? ` in sheet "${best.sheetName}"` : ''}: ${found || 'none'}.`);
+        }
+
+        function cell(row, map, field) {
+            return field in map ? row[map[field]] : undefined;
+        }
+
+        function isBlankRow(row) {
+            return row.every(v => String(v ?? '').trim() === '');
+        }
+
+        function parseInventory(table) {
+            const { rows, headerIndex, map } = table;
+            const items = [];
+            const issues = [];
+            const seen = new Map();
+            let noMoq = 0, duplicates = 0;
+
+            for (let i = headerIndex + 1; i < rows.length; i++) {
+                const row = rows[i];
+                if (isBlankRow(row)) continue;
+                const line = i + 1;
+                const code = normCode(cell(row, map, 'code'));
+                if (!code || code === '0') { issues.push(`Row ${line}: missing item code`); continue; }
+                const stock = parseNum(cell(row, map, 'currentStock'));
+                if (isNaN(stock)) { issues.push(`Row ${line} (${code}): current qty "${cell(row, map, 'currentStock') ?? ''}" is not a number`); continue; }
+
+                const num = field => { const n = parseNum(cell(row, map, field)); return isNaN(n) ? null : n; };
+                const moq = num('moq');
+                if (!(moq > 0)) noMoq++;
+
+                const item = {
+                    code,
+                    name: String(cell(row, map, 'name') ?? '').trim(),
+                    currentStock: stock,
+                    supplier: normCode(cell(row, map, 'supplier')),
+                    supplierName: String(cell(row, map, 'supplierName') ?? '').trim(),
+                    moq: moq > 0 ? moq : 1,
+                    leadTime: num('leadTime'),
+                    container: normContainerType(cell(row, map, 'container')),
+                    cbm: num('cbm') || 0,
+                    cbmCarton: num('cbmCarton') || 0,
+                    baseQty: num('baseQty') || 0,
+                    cap20: num('cap20') || 0,
+                    cap40: num('cap40') || 0,
+                    avgDaily: num('avgDaily') || 0,
+                };
+
+                if (seen.has(code)) { duplicates++; items[seen.get(code)] = item; }
+                else { seen.set(code, items.length); items.push(item); }
+            }
+
+            const warnings = [];
+            if (noMoq) warnings.push(`${noMoq} item(s) have no MOQ; assumed 1 carton`);
+            if (duplicates) warnings.push(`${duplicates} duplicate item code(s); the last row for each was kept`);
+            if (!('supplier' in map) && !('supplierName' in map)) warnings.push('No supplier column; lead times must come from a Lead_Time column');
+            if (!('cap20' in map) && !('cap40' in map)) {
+                warnings.push(('cbm' in map || 'cbmCarton' in map)
+                    ? 'No 20ft/40ft capacity columns; container counts are estimated from CBM'
+                    : 'No container capacity or CBM columns; containers cannot be calculated');
+            }
+            return { items, issues, warnings };
+        }
+
+        function daysInMonth(year, month) {
+            return new Date(Date.UTC(year, month, 0)).getUTCDate();
+        }
+
+        // Returns a UTC midnight timestamp, or null. Slash dates are read as day/month/year
+        // unless the first number can only be a month.
+        function parseDate(value) {
+            if (value instanceof Date && !isNaN(value)) {
+                return Date.UTC(value.getFullYear(), value.getMonth(), value.getDate());
+            }
+            const s = String(value ?? '').trim();
+            let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+            if (m) return Date.UTC(+m[1], +m[2] - 1, +m[3]);
+            m = s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/);
+            if (m) {
+                let [a, b, y] = [+m[1], +m[2], +m[3]];
+                if (y < 100) y += 2000;
+                const [day, month] = (b > 12 && a <= 12) ? [b, a] : [a, b];
+                if (month < 1 || month > 12 || day < 1 || day > daysInMonth(y, month)) return null;
+                return Date.UTC(y, month - 1, day);
+            }
+            const t = Date.parse(s);
+            if (isNaN(t)) return null;
+            const d = new Date(t);
+            return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+        }
+
+        // Returns 'YYYY-MM', or null.
+        function parseMonth(value) {
+            if (value instanceof Date && !isNaN(value)) {
+                return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}`;
+            }
+            const s = String(value ?? '').trim();
+            let m = s.match(/^(\d{4})[-\/](\d{1,2})$/);
+            if (m && +m[2] >= 1 && +m[2] <= 12) return `${m[1]}-${m[2].padStart(2, '0')}`;
+            m = s.match(/^([A-Za-z]{3,9})[\s\-']*(\d{2}|\d{4})$/);
+            if (m) {
+                const month = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'].indexOf(m[1].slice(0, 3).toLowerCase());
+                if (month !== -1) {
+                    const year = m[2].length === 2 ? 2000 + +m[2] : +m[2];
+                    return `${year}-${String(month + 1).padStart(2, '0')}`;
+                }
+            }
+            const t = parseDate(s);
+            if (t === null) return null;
+            const d = new Date(t);
+            return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+        }
+
+        // Average daily sales = total sales / number of days the file covers (the same period for every item).
+        function parseSales(table) {
+            const { rows, headerIndex, map } = table;
+            const byDate = 'date' in map;
+            const totals = new Map();
+            const issues = [];
+            const months = new Set();
+            let minDate = null, maxDate = null;
+
+            for (let i = headerIndex + 1; i < rows.length; i++) {
+                const row = rows[i];
+                if (isBlankRow(row)) continue;
+                const line = i + 1;
+                const code = normCode(cell(row, map, 'code'));
+                if (!code) { issues.push(`Row ${line}: missing item code`); continue; }
+
+                const rawSales = cell(row, map, 'sales');
+                const sales = String(rawSales ?? '').trim() === '' ? 0 : parseNum(rawSales);
+                if (isNaN(sales)) { issues.push(`Row ${line} (${code}): sales "${rawSales}" is not a number`); continue; }
+
+                if (byDate) {
+                    const t = parseDate(cell(row, map, 'date'));
+                    if (t === null) { issues.push(`Row ${line} (${code}): date "${cell(row, map, 'date')}" not recognised`); continue; }
+                    minDate = minDate === null ? t : Math.min(minDate, t);
+                    maxDate = maxDate === null ? t : Math.max(maxDate, t);
+                } else {
+                    const key = parseMonth(cell(row, map, 'month'));
+                    if (!key) { issues.push(`Row ${line} (${code}): month "${cell(row, map, 'month')}" not recognised`); continue; }
+                    months.add(key);
+                }
+                totals.set(code, (totals.get(code) || 0) + sales);
+            }
+
+            let days = 0, label = '';
+            if (byDate && minDate !== null) {
+                days = Math.round((maxDate - minDate) / 86400000) + 1;
+                const fmt = t => new Date(t).toISOString().slice(0, 10);
+                label = `${fmt(minDate)} to ${fmt(maxDate)}`;
+            } else if (months.size) {
+                const sorted = [...months].sort();
+                days = sorted.reduce((sum, key) => sum + daysInMonth(+key.slice(0, 4), +key.slice(5, 7)), 0);
+                label = `${sorted.length} month(s), ${sorted[0]} to ${sorted[sorted.length - 1]}`;
+            }
+
+            const stats = new Map();
+            if (days > 0) {
+                totals.forEach((total, code) => stats.set(code, {
+                    totalSales: total,
+                    avgDaily: Math.round((total / days) * 100) / 100,
+                }));
+            }
+            const warnings = [];
+            if (days > 0 && days < 28) warnings.push(`File covers only ${days} day(s); averages may be unreliable`);
+            return { stats, period: days > 0 ? { days, label } : null, issues, warnings };
+        }
+
+        function parseSuppliers(table) {
+            const { rows, headerIndex, map } = table;
+            const list = [];
+            const issues = [];
+            for (let i = headerIndex + 1; i < rows.length; i++) {
+                const row = rows[i];
+                if (isBlankRow(row)) continue;
+                const line = i + 1;
+                const code = normCode(cell(row, map, 'code'));
+                const name = String(cell(row, map, 'name') ?? '').trim();
+                if (!code && !name) { issues.push(`Row ${line}: missing supplier code and name`); continue; }
+                const leadTime = parseNum(cell(row, map, 'leadTime'));
+                if (isNaN(leadTime)) { issues.push(`Row ${line} (${code || name}): lead time "${cell(row, map, 'leadTime') ?? ''}" is not a number`); continue; }
+                list.push({ code: code || name, name: name || code, leadTime, type: normContainerType(cell(row, map, 'type')) });
+            }
+            return { list, issues, warnings: [] };
+        }
+
+        // ---------- Upload handling ----------
+
+        let supplierMaster = sampleSuppliers.map(s => ({ ...s }));
+
+        // Supplier list = uploaded (or sample) master plus any supplier referenced by an item but not in it.
+        function rebuildSuppliers() {
+            suppliers = supplierMaster.map(s => ({ ...s }));
+            inventory.forEach(item => {
+                if (!item.supplier && !item.supplierName) return;
+                if (findSupplier(item)) return;
+                suppliers.push({
+                    code: item.supplier || item.supplierName,
+                    name: item.supplierName || item.supplier,
+                    leadTime: null,
+                    type: '',
+                });
+            });
+        }
+
+        function renderUploadStatus(type, result) {
+            const box = document.getElementById(`${type}Status`);
+            if (result.error) {
+                box.innerHTML = `<div class="msg-error">✗ ${escapeHtml(result.error)}</div>`;
+                return;
+            }
+            const lines = [`<div class="msg-ok">✓ ${escapeHtml(result.summary)}</div>`];
+            result.warnings.forEach(w => lines.push(`<div class="msg-warn">⚠ ${escapeHtml(w)}</div>`));
+            if (result.issues.length) {
+                const shown = result.issues.slice(0, 5).map(i => `<li>${escapeHtml(i)}</li>`).join('');
+                const more = result.issues.length > 5 ? `<li>…and ${result.issues.length - 5} more</li>` : '';
+                lines.push(`<div class="msg-warn">⚠ Skipped ${result.issues.length} row(s):</div><ul>${shown}${more}</ul>`);
+            }
+            box.innerHTML = lines.join('');
+        }
+
+        async function handleFileUpload(type, input) {
+            const file = input.files && input.files[0];
+            input.value = ''; // allow re-uploading the same file after editing it
+            if (!file) return;
+
+            const statusBox = document.getElementById(`${type}Status`);
+            statusBox.innerHTML = `<div>Reading ${escapeHtml(file.name)}…</div>`;
+
+            try {
+                const tables = await readTables(file);
+                const spec = { inventory: INVENTORY_SPEC, sales: SALES_SPEC, suppliers: SUPPLIER_SPEC }[type];
+                const table = locateTable(tables, spec);
+                const where = `${table.sheetName ? `sheet "${table.sheetName}", ` : ''}header on row ${table.headerIndex + 1}`;
+
+                let result;
+                if (type === 'inventory') {
+                    const parsed = parseInventory(table);
+                    if (!parsed.items.length) throw new Error('No valid item rows found.');
+                    inventory = parsed.items;
+                    if (!loadedFiles.suppliers) supplierMaster = [];
+                    rebuildSuppliers();
+                    const noLead = inventory.filter(item => leadTimeOf(item) === null).length;
+                    if (noLead) parsed.warnings.push(`${noLead} item(s) have no lead time (from the file or a supplier); 0 days assumed`);
+                    if (!salesStats && !('avgDaily' in table.map)) parsed.warnings.push('No sales averages yet; upload a sales file to calculate POs');
+                    result = { ...parsed, summary: `Loaded ${parsed.items.length} items from ${file.name} (${where})` };
+                } else if (type === 'sales') {
+                    const parsed = parseSales(table);
+                    if (!parsed.period) throw new Error('No valid sales rows found.');
+                    salesStats = parsed.stats;
+                    salesPeriod = parsed.period;
+                    const matched = inventory.filter(item => salesStats.has(item.code)).length;
+                    if (matched < inventory.length) parsed.warnings.push(`${inventory.length - matched} of ${inventory.length} inventory item(s) have no rows in this file`);
+                    result = { ...parsed, summary: `Loaded sales for ${parsed.stats.size} items over ${parsed.period.days} days (${parsed.period.label}) from ${file.name}` };
+                } else {
+                    const parsed = parseSuppliers(table);
+                    if (!parsed.list.length) throw new Error('No valid supplier rows found.');
+                    supplierMaster = parsed.list;
+                    rebuildSuppliers();
+                    result = { ...parsed, summary: `Loaded ${parsed.list.length} suppliers from ${file.name} (${where})` };
+                }
+                loadedFiles[type] = file.name;
+                renderUploadStatus(type, result);
+                refreshAll();
+            } catch (err) {
+                renderUploadStatus(type, { error: err.message || String(err) });
+            }
+        }
+
+        function resetToSample() {
+            suppliers = sampleSuppliers.map(s => ({ ...s }));
+            supplierMaster = sampleSuppliers.map(s => ({ ...s }));
+            inventory = sampleInventoryData.map(i => ({ ...i }));
+            salesStats = null;
+            salesPeriod = null;
+            Object.keys(loadedFiles).forEach(k => { loadedFiles[k] = null; });
+            ['inventory', 'sales', 'suppliers'].forEach(t => { document.getElementById(`${t}Status`).innerHTML = ''; });
+            poOrders = [];
+            poGenerated = false;
+            refreshAll();
+        }
+
+        const TEMPLATES = {
+            inventory: 'Item_Code,Item_Name,Current_Qty,Supplier_Code,MOQ,Lead_Time,Container_Type,Base_Qty,CBM,20ft,40ft\n'
+                + '321601,Richina Basil Seed-Mango-290ml X 24,2500,V20183,450,80,40ft,24,0.00128,1000,2100\n'
+                + '120405,Farm Fresh Chakki Fresh (Atta)-5Kg X 4,2472,V20185,1000,7,20ft,4,0.025,,\n',
+            sales: 'Date,Item_Code,Sales\n'
+                + '2026-02-01,321601,90\n'
+                + '2026-02-02,321601,75\n'
+                + '2026-02-01,120405,160\n',
+            suppliers: 'Supplier_Code,Supplier_Name,Lead_Time,Container_Type\n'
+                + 'V20183,YU DAT BS,80,40ft\n'
+                + 'V20185,Local Supplier A,7,20ft\n',
+        };
+
+        function downloadTemplate(type) {
+            const blob = new Blob([TEMPLATES[type]], { type: 'text/csv' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `${type}_template.csv`;
+            link.click();
+            URL.revokeObjectURL(link.href);
+        }
+
+        // ---------- Rendering ----------
+
+        function init() {
+            refreshAll();
+        }
+
+        function refreshAll() {
+            updateSupplierFilter();
+            updateSupplierSummary();
+            updateInventoryTable();
+            if (poGenerated) generatePO(); else updatePOTable();
+            updateStats();
+            updateDataSourceLabel();
+        }
+
+        function updateDataSourceLabel() {
+            const parts = [];
+            parts.push(loadedFiles.inventory ? `Inventory: ${loadedFiles.inventory}` : 'Inventory: sample data');
+            if (loadedFiles.sales) parts.push(`Sales: ${loadedFiles.sales}`);
+            if (loadedFiles.suppliers) parts.push(`Suppliers: ${loadedFiles.suppliers}`);
+            document.getElementById('dataSourceLabel').textContent = parts.join(' · ');
+        }
+
+        function switchTab(tabName, button) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            button.classList.add('active');
+        }
+
+        function onPlanningDaysChange() {
+            document.getElementById('invDaysDisplay').textContent = document.getElementById('inventoryDays').value;
+            document.getElementById('safeDaysDisplay').textContent = document.getElementById('safetyDays').value;
+            document.getElementById('defaultInvDays').value = document.getElementById('inventoryDays').value;
+            document.getElementById('defaultSafeDays').value = document.getElementById('safetyDays').value;
+            updateInventoryTable();
+            if (poGenerated) generatePO();
+        }
+
+        function applySettingsDays() {
+            document.getElementById('inventoryDays').value = document.getElementById('defaultInvDays').value;
+            document.getElementById('safetyDays').value = document.getElementById('defaultSafeDays').value;
+            onPlanningDaysChange();
+        }
+
+        function updateSupplierFilter() {
+            const select = document.getElementById('supplierFilter');
+            const previous = select.value;
+            const keys = [...new Set(inventory.map(supplierKey).filter(Boolean))];
+            select.innerHTML = '<option value="ALL">All Suppliers</option>' + keys.map(key => {
+                const supplier = suppliers.find(s => s.code === key);
+                return `<option value="${escapeHtml(key)}">${escapeHtml(supplier ? supplier.name : key)}</option>`;
+            }).join('');
+            select.value = keys.includes(previous) ? previous : 'ALL';
+        }
+
         function updateInventoryTable() {
             const supplier = document.getElementById('supplierFilter').value;
             const tbody = document.querySelector('#inventoryTable tbody');
             tbody.innerHTML = '';
 
-            const filtered = supplier === 'ALL' ? inventory : inventory.filter(i => i.supplier === supplier);
+            const filtered = supplier === 'ALL' ? inventory : inventory.filter(i => supplierKey(i) === supplier);
 
             filtered.forEach(item => {
-                const daysSupply = (item.currentStock / item.avgDaily).toFixed(1);
+                const daysSupply = daysSupplyOf(item);
                 const status = getStatus(daysSupply);
-                const statusLabel = status.toUpperCase();
-                const statusColor = `status-${status}`;
+                const statusLabel = status === 'nosales' ? 'NO SALES' : status.toUpperCase();
+                const avgDaily = avgDailyOf(item);
 
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>${item.code}</td>
-                    <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis;">${item.name}</td>
-                    <td style="text-align: center;">${item.currentStock.toLocaleString()}</td>
-                    <td style="text-align: center;">${item.avgDaily}</td>
-                    <td style="text-align: center; color: ${getStatusColor(status)}; font-weight: 600;">${daysSupply} days</td>
-                    <td style="text-align: center;"><span class="status-badge ${statusColor}">${statusLabel}</span></td>
-                    <td style="font-size: 12px;">${suppliers.find(s => s.code === item.supplier)?.name || ''}</td>
+                    <td>${escapeHtml(item.code)}</td>
+                    <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(item.name)}</td>
+                    <td style="text-align: center;">${formatNum(item.currentStock)}</td>
+                    <td style="text-align: center;">${avgDaily > 0 ? formatNum(avgDaily, avgDaily % 1 ? 2 : 0) : '—'}</td>
+                    <td style="text-align: center; color: ${getStatusColor(status)}; font-weight: 600;">${daysSupply === null ? '—' : `${daysSupply.toFixed(1)} days`}</td>
+                    <td style="text-align: center;"><span class="status-badge status-${status}">${statusLabel}</span></td>
+                    <td style="font-size: 12px;">${escapeHtml(findSupplier(item)?.name || item.supplierName || item.supplier || '')}</td>
                 `;
                 tbody.appendChild(row);
             });
@@ -739,83 +1439,80 @@
                 critical: '#ef4444',
                 low: '#f97316',
                 optimal: '#22c55e',
-                high: '#3b82f6'
+                high: '#3b82f6',
+                nosales: '#94a3b8',
             };
             return colors[status] || '#e2e8f0';
         }
 
-        // Calculate PO
-        function calculatePOQuantity(item) {
-            const supplier = suppliers.find(s => s.code === item.supplier);
-            if (!supplier) return 0;
-
-            const inventoryDays = parseInt(document.getElementById('inventoryDays').value);
-            const safetyDays = parseInt(document.getElementById('safetyDays').value);
-            const daysToOrder = inventoryDays + supplier.leadTime + safetyDays;
-            
-            const requiredQty = Math.ceil((item.avgDaily * daysToOrder) / item.moq) * item.moq;
-            return Math.max(requiredQty - item.currentStock, 0);
-        }
-
-        // Generate PO
         function generatePO() {
-            const inventoryDays = parseInt(document.getElementById('inventoryDays').value);
-            
-            const newPOs = inventory.map(item => {
-                const supplier = suppliers.find(s => s.code === item.supplier);
-                const poQty = calculatePOQuantity(item);
-                
+            const settings = getSettings();
+            const today = new Date();
+            const stamp = today.toISOString().slice(0, 10).replace(/-/g, '');
+
+            poOrders = inventory.map(item => {
+                const poQty = calculatePOQuantity(item, settings);
                 if (poQty === 0) return null;
 
-                const containers = Math.ceil(poQty / item.moq);
-                const requiredDate = new Date();
-                requiredDate.setDate(requiredDate.getDate() + supplier.leadTime);
+                const supplier = findSupplier(item);
+                const leadTime = leadTimeOf(item) ?? 0;
+                const plan = planContainers(poQty, item, settings);
+                const requiredDate = new Date(today);
+                requiredDate.setDate(requiredDate.getDate() + leadTime);
 
                 return {
-                    id: `PO-${Date.now()}-${item.code}`,
+                    id: `PO-${stamp}-${item.code}`,
                     itemCode: item.code,
                     itemName: item.name,
-                    supplier: supplier?.name,
-                    supplierCode: item.supplier,
+                    supplier: supplier?.name || item.supplierName || item.supplier || '—',
+                    supplierCode: supplierKey(item),
                     quantity: poQty,
                     moq: item.moq,
-                    containerType: item.container,
-                    containers: containers,
-                    cbmTotal: (poQty / item.moq) * item.cbm,
-                    leadTime: supplier?.leadTime,
+                    containers: plan,
+                    cbmTotal: poQty * cbmPerCarton(item),
+                    leadTime,
                     requiredDate: requiredDate.toISOString().split('T')[0],
                     status: 'Pending',
                 };
             }).filter(po => po !== null);
 
-            poOrders = newPOs;
+            poGenerated = true;
             updatePOTable();
             updateStats();
         }
 
-        // Update PO table
         function updatePOTable() {
             const tbody = document.querySelector('#poTable tbody');
             const emptyDiv = document.getElementById('poEmpty');
-            
+            const summary = document.getElementById('poSummary');
+            tbody.innerHTML = '';
+
             if (poOrders.length === 0) {
-                tbody.innerHTML = '';
                 emptyDiv.style.display = 'block';
+                emptyDiv.querySelector('p').textContent = poGenerated
+                    ? 'No purchase orders needed with the current stock, sales and settings'
+                    : 'Click "Generate PO" to create purchase orders based on current settings';
+                summary.textContent = '';
                 return;
             }
 
             emptyDiv.style.display = 'none';
-            tbody.innerHTML = '';
+            const n40 = poOrders.reduce((sum, po) => sum + (po.containers ? po.containers.n40 : 0), 0);
+            const n20 = poOrders.reduce((sum, po) => sum + (po.containers ? po.containers.n20 : 0), 0);
+            const cbm = poOrders.reduce((sum, po) => sum + po.cbmTotal, 0);
+            summary.textContent = `${poOrders.length} PO line(s) · ${formatNum(poOrders.reduce((s, po) => s + po.quantity, 0))} cartons · ${n40} × 40ft + ${n20} × 20ft · ${formatNum(cbm, 2)} CBM`;
 
             poOrders.forEach(po => {
+                const plan = po.containers;
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td style="color: #3b82f6; font-weight: 600;">${po.id.substring(0, 15)}...</td>
-                    <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; font-size: 11px;">${po.itemCode}</td>
-                    <td style="text-align: center; font-weight: 600;">${po.quantity.toLocaleString()}</td>
-                    <td style="text-align: center;">${po.containerType} x${po.containers}</td>
-                    <td style="text-align: center;">${po.cbmTotal.toFixed(2)}</td>
-                    <td>${po.supplier}</td>
+                    <td style="color: #3b82f6; font-weight: 600;">${escapeHtml(po.id)}</td>
+                    <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; font-size: 11px;" title="${escapeHtml(po.itemName)}">${escapeHtml(po.itemCode)}</td>
+                    <td style="text-align: center; font-weight: 600;">${formatNum(po.quantity)}</td>
+                    <td style="text-align: center;">${plan ? escapeHtml(plan.label) + (plan.estimated ? ' <span class="est" title="Capacity estimated from CBM">est.</span>' : '') : '—'}</td>
+                    <td style="text-align: center;">${plan ? `${Math.round(plan.fill * 100)}%` : '—'}</td>
+                    <td style="text-align: center;">${po.cbmTotal > 0 ? po.cbmTotal.toFixed(2) : '—'}</td>
+                    <td>${escapeHtml(po.supplier)}</td>
                     <td style="text-align: center;">${po.leadTime} days</td>
                     <td>${po.requiredDate}</td>
                     <td style="text-align: center;"><span class="status-badge" style="background-color: #22c55e;">PENDING</span></td>
@@ -824,7 +1521,6 @@
             });
         }
 
-        // Update supplier summary
         function updateSupplierSummary() {
             const summary = document.getElementById('supplierSummary');
             summary.innerHTML = '';
@@ -832,36 +1528,29 @@
             suppliers.forEach(supplier => {
                 const div = document.createElement('div');
                 div.className = 'supplier-item';
+                const leadTime = supplier.leadTime === null || supplier.leadTime === undefined ? 'per item' : `${supplier.leadTime} days`;
                 div.innerHTML = `
-                    <p class="supplier-name">${supplier.name} (${supplier.code})</p>
-                    <p class="supplier-details">Lead Time: ${supplier.leadTime} days | Container: ${supplier.type}</p>
+                    <p class="supplier-name">${escapeHtml(supplier.name)} (${escapeHtml(supplier.code)})</p>
+                    <p class="supplier-details">Lead Time: ${escapeHtml(leadTime)} | Container: ${escapeHtml(supplier.type || 'per item')}</p>
                 `;
                 summary.appendChild(div);
             });
         }
 
-        // Update stats
         function updateStats() {
-            const critical = inventory.filter(i => (i.currentStock / i.avgDaily) < 10).length;
-            const low = inventory.filter(i => {
-                const days = i.currentStock / i.avgDaily;
-                return days >= 10 && days < 20;
-            }).length;
-            const optimal = inventory.filter(i => {
-                const days = i.currentStock / i.avgDaily;
-                return days >= 20 && days <= 90;
-            }).length;
-            const high = inventory.filter(i => (i.currentStock / i.avgDaily) > 90).length;
+            const counts = { critical: 0, low: 0, optimal: 0, high: 0, nosales: 0 };
+            inventory.forEach(item => { counts[getStatus(daysSupplyOf(item))]++; });
 
             document.getElementById('statTotalItems').textContent = inventory.length;
-            document.getElementById('statSuppliers').textContent = suppliers.length;
+            document.getElementById('statSuppliers').textContent = new Set(inventory.map(supplierKey).filter(Boolean)).size;
             document.getElementById('statPendingPos').textContent = poOrders.filter(po => po.status === 'Pending').length;
-            document.getElementById('statCritical').textContent = critical;
+            document.getElementById('statCritical').textContent = counts.critical;
 
-            document.getElementById('countCritical').textContent = critical;
-            document.getElementById('countLow').textContent = low;
-            document.getElementById('countOptimal').textContent = optimal;
-            document.getElementById('countHigh').textContent = high;
+            document.getElementById('countCritical').textContent = counts.critical;
+            document.getElementById('countLow').textContent = counts.low;
+            document.getElementById('countOptimal').textContent = counts.optimal;
+            document.getElementById('countHigh').textContent = counts.high;
+            document.getElementById('countNoSales').textContent = counts.nosales;
         }
 
         // Initialize on load

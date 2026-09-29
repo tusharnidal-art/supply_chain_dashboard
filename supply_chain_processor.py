@@ -6,9 +6,113 @@ Converts Excel data to JSON for interactive dashboard
 
 import pandas as pd
 import json
+import math
 from datetime import datetime, timedelta
 from pathlib import Path
 import numpy as np
+
+# Quantities (stock, sales, MOQ, container capacity, PO qty) are in cartons.
+# 'cbm' in ItemData is volume per piece and 'BaseQty' is pieces per carton,
+# so one carton takes cbm * BaseQty cubic metres.
+
+# Usable container volumes, used only to estimate capacity when an item has
+# no 20ft/40ft value. Keep in step with the dashboard's Settings tab.
+USABLE_CBM_20FT = 28
+USABLE_CBM_40FT = 58
+
+
+def _code(value):
+    """Normalise an item code so 321601, 321601.0 and '321601' all match."""
+    if value is None or (isinstance(value, float) and math.isnan(value)):
+        return ''
+    if isinstance(value, float) and value.is_integer():
+        value = int(value)
+    return str(value).strip()
+
+
+def _num(value, default=0):
+    """Convert a cell to a float, returning default for blanks and text."""
+    try:
+        n = float(str(value).replace(',', ''))
+    except (TypeError, ValueError):
+        return default
+    return default if math.isnan(n) else n
+
+
+def get_status(days_supply):
+    """Stock status; same thresholds as the dashboard."""
+    if days_supply is None:
+        return 'NO SALES'
+    if days_supply < 10:
+        return 'CRITICAL'
+    if days_supply < 20:
+        return 'LOW'
+    if days_supply > 90:
+        return 'HIGH'
+    return 'OPTIMAL'
+
+
+def cbm_per_carton(item):
+    """Volume of one carton in cubic metres."""
+    base_qty = item.get('baseQty') or 1
+    return (item.get('cbmPerUnit') or 0) * base_qty
+
+
+def container_capacity(item, size):
+    """Cartons per container: the item's own value, else estimated from CBM.
+
+    Returns (capacity, estimated) or None when neither is available.
+    """
+    explicit = item.get('capacity20ft' if size == '20ft' else 'capacity40ft') or 0
+    if explicit > 0:
+        return explicit, False
+    cbm = cbm_per_carton(item)
+    if cbm > 0:
+        cap = math.floor((USABLE_CBM_20FT if size == '20ft' else USABLE_CBM_40FT) / cbm)
+        if cap > 0:
+            return cap, True
+    return None
+
+
+def plan_containers(qty, item, preferred=''):
+    """Containers for qty cartons; same rules as the dashboard.
+
+    Uses the preferred size when given; otherwise fills 40ft containers and
+    ships the remainder in one 20ft when it fits.
+    """
+    c20 = container_capacity(item, '20ft')
+    c40 = container_capacity(item, '40ft')
+    if not c20 and not c40:
+        return None
+
+    n20 = n40 = 0
+    if (preferred == '20ft' and c20) or not c40:
+        n20 = math.ceil(qty / c20[0])
+    elif preferred == '40ft' or not c20:
+        n40 = math.ceil(qty / c40[0])
+    else:
+        n40 = qty // c40[0]
+        remainder = qty - n40 * c40[0]
+        if remainder > 0:
+            if remainder <= c20[0]:
+                n20 = 1
+            else:
+                n40 += 1
+
+    capacity = n20 * (c20[0] if c20 else 0) + n40 * (c40[0] if c40 else 0)
+    parts = []
+    if n40:
+        parts.append(f'{int(n40)} x 40ft')
+    if n20:
+        parts.append(f'{int(n20)} x 20ft')
+    return {
+        'containers20ft': int(n20),
+        'containers40ft': int(n40),
+        'label': ' + '.join(parts),
+        'fill': round(qty / capacity, 3) if capacity else 0,
+        'estimated': bool((n20 and c20[1]) or (n40 and c40[1])),
+    }
+
 
 class SupplyChainProcessor:
     """Process supply chain data from Excel files"""
@@ -46,16 +150,19 @@ class SupplyChainProcessor:
         
         items = []
         for idx, row in self.item_master.iterrows():
+            code = _code(row['Item Code'])
+            if not code:
+                continue
             item = {
-                'code': row['Item Code'],
+                'code': code,
                 'name': row['Item Name'],
-                'baseQty': row['BaseQty'],
-                'capacity40ft': row.get('40ft', 0),
-                'capacity20ft': row.get('20ft', 0),
-                'cbmPerUnit': row.get('cbm', 0),
+                'baseQty': _num(row.get('BaseQty'), 1) or 1,
+                'capacity40ft': _num(row.get('40ft')),
+                'capacity20ft': _num(row.get('20ft')),
+                'cbmPerUnit': _num(row.get('cbm')),
                 'supplier': row.get('Supplier Name', ''),
-                'moq': row.get('MOQ', 0),
-                'leadTime': int(row.get('Transit Time(Days)', 0))
+                'moq': _num(row.get('MOQ'), 1) or 1,
+                'leadTime': int(_num(row.get('Transit Time(Days)')))
             }
             items.append(item)
         
@@ -76,14 +183,15 @@ class SupplyChainProcessor:
         current = []
         
         for idx, row in self.inventory_current.iterrows():
-            if pd.isna(row['Item Code']) or row['Item Code'] == 0:
+            code = _code(row['Item Code'])
+            if not code or code == '0':
                 continue
                 
             inv_item = {
-                'code': int(row['Item Code']),
+                'code': code,
                 'name': row.get('Item Name', ''),
-                'currentQty': int(row.get('Qty(Ctn)', 0)),
-                'currentPcs': int(row.get('Qty(Pcs)', 0)),
+                'currentQty': int(_num(row.get('Qty(Ctn)'))),
+                'currentPcs': int(_num(row.get('Qty(Pcs)'))),
                 'salePrice': float(row.get('Sale Price', 0)) if 'Sale Price' in row else 0,
                 'purchasePrice': float(row.get('PurPrice', 0)) if 'PurPrice' in row else 0
             }
@@ -98,37 +206,35 @@ class SupplyChainProcessor:
         """Calculate average daily sales from LocalItemReport"""
         print(f"\n[3] Calculating Average Daily Sales (Last {months} months)...")
         
-        # LocalItemReport has pattern: BAL, INC, DEC repeated
-        # Extract DEC columns (sales)
+        # LocalItemReport has BAL, INC, DEC columns repeated once per month
+        # (pandas names the repeats DEC, DEC.1, ...). Each DEC column is one
+        # month of sales, so the last `months` of them cover the period.
         sales_stats = {}
+        dec_columns = [col for col in self.sales_raw.columns if 'DEC' in str(col)]
+        recent_columns = dec_columns[-months:]
         
-        for code in self.sales_raw['Code'].unique():
-            if pd.isna(code):
+        for raw_code in self.sales_raw['Code'].unique():
+            code = _code(raw_code)
+            if not code:
                 continue
             
-            item_sales = self.sales_raw[self.sales_raw['Code'] == code]
+            item_sales = self.sales_raw[self.sales_raw['Code'] == raw_code]
             
-            # Find all DEC columns (every 3rd column starting from DEC)
-            dec_columns = [col for col in self.sales_raw.columns if 'DEC' in str(col)]
-            
-            # Sum sales from recent periods
+            # Sum sales from recent months
             total_sales = 0
             period_count = 0
             
-            for col in dec_columns[-months*3:]:  # Last 3 months (3 cols per month)
-                try:
-                    sales = item_sales[col].sum()
-                    if not pd.isna(sales):
-                        total_sales += sales
-                        period_count += 1
-                except:
-                    pass
+            for col in recent_columns:
+                sales = pd.to_numeric(item_sales[col], errors='coerce').sum()
+                if not pd.isna(sales):
+                    total_sales += sales
+                    period_count += 1
             
             # Average daily
             avg_daily = (total_sales / (period_count * 30)) if period_count > 0 else 0
             sales_stats[code] = {
-                'totalSales': total_sales,
-                'avgDaily': round(avg_daily, 2),
+                'totalSales': float(total_sales),
+                'avgDaily': round(float(avg_daily), 2),
                 'periodsAnalyzed': period_count
             }
         
@@ -170,41 +276,19 @@ class SupplyChainProcessor:
             required_qty_raw = avg_daily * required_days
             
             # Round up to MOQ
-            import math
             required_qty = math.ceil(required_qty_raw / moq) * moq
             
             # Calculate PO quantity (only if needed)
             po_qty = max(0, required_qty - current_qty)
             
             # Calculate containers
-            capacity_40ft = item.get('capacity40ft', 0)
-            capacity_20ft = item.get('capacity20ft', 0)
-            
-            containers_40ft = math.ceil(po_qty / capacity_40ft) if capacity_40ft > 0 else 0
-            containers_20ft = math.ceil(po_qty / capacity_20ft) if capacity_20ft > 0 else 0
-            
-            # Determine best container
-            if containers_40ft > 0 and containers_20ft == 0:
-                best_container = '40ft'
-                best_containers = containers_40ft
-            elif containers_20ft > 0 and containers_40ft == 0:
-                best_container = '20ft'
-                best_containers = containers_20ft
-            elif containers_40ft > 0 and containers_20ft > 0:
-                # Choose based on utilization
-                util_40 = po_qty / (containers_40ft * capacity_40ft)
-                util_20 = po_qty / (containers_20ft * capacity_20ft)
-                best_container = '40ft' if util_40 >= util_20 else '20ft'
-                best_containers = containers_40ft if util_40 >= util_20 else containers_20ft
-            else:
-                best_container = '40ft'
-                best_containers = 0
+            plan = plan_containers(po_qty, item) if po_qty > 0 else None
             
             # Calculate CBM
-            cbm_total = po_qty * item.get('cbmPerUnit', 0)
+            cbm_total = po_qty * cbm_per_carton(item)
             
             # Days until stock runs out
-            days_supply = current_qty / avg_daily if avg_daily > 0 else 0
+            days_supply = current_qty / avg_daily
             
             # Required delivery date
             required_date = datetime.now() + timedelta(days=lead_time)
@@ -220,12 +304,16 @@ class SupplyChainProcessor:
                 'requiredQty': int(required_qty),
                 'poQty': int(po_qty),
                 'supplier': item.get('supplier', ''),
-                'containerType': best_container,
-                'containers': int(best_containers),
+                'containers20ft': plan['containers20ft'] if plan else 0,
+                'containers40ft': plan['containers40ft'] if plan else 0,
+                'containers': (plan['containers20ft'] + plan['containers40ft']) if plan else 0,
+                'containerPlan': plan['label'] if plan else '',
+                'containerFill': plan['fill'] if plan else 0,
+                'capacityEstimated': plan['estimated'] if plan else False,
                 'cbmTotal': round(cbm_total, 2),
                 'requiredDate': required_date.strftime('%Y-%m-%d'),
                 'status': 'Pending' if po_qty > 0 else 'No PO Needed',
-                'priority': self._get_priority(days_supply)
+                'priority': get_status(days_supply)
             }
             
             po_calc.append(po_record)
@@ -238,20 +326,9 @@ class SupplyChainProcessor:
         
         return po_calc
     
-    def _get_priority(self, days_supply):
-        """Determine priority based on days supply"""
-        if days_supply < 10:
-            return 'CRITICAL'
-        elif days_supply < 20:
-            return 'HIGH'
-        elif days_supply < 30:
-            return 'MEDIUM'
-        else:
-            return 'LOW'
-    
     def _priority_order(self, priority):
         """Return sort order for priority"""
-        order = {'CRITICAL': 0, 'HIGH': 1, 'MEDIUM': 2, 'LOW': 3}
+        order = {'CRITICAL': 0, 'LOW': 1, 'OPTIMAL': 2, 'HIGH': 3}
         return order.get(priority, 4)
     
     def export_json(self, output_dir='./data'):
@@ -291,7 +368,7 @@ class SupplyChainProcessor:
             'totalItems': len(self.items),
             'itemsWithPO': len([p for p in self.po_calculations if p['poQty'] > 0]),
             'criticalItems': len([p for p in self.po_calculations if p['priority'] == 'CRITICAL']),
-            'highPriority': len([p for p in self.po_calculations if p['priority'] == 'HIGH']),
+            'lowStock': len([p for p in self.po_calculations if p['priority'] == 'LOW']),
             'totalPOValue': sum([p['poQty'] for p in self.po_calculations]),
             'suppliers': len(self.suppliers)
         }
@@ -326,7 +403,7 @@ class SupplyChainProcessor:
         print("="*60)
         
         critical = [p for p in self.po_calculations if p['priority'] == 'CRITICAL']
-        high = [p for p in self.po_calculations if p['priority'] == 'HIGH']
+        low = [p for p in self.po_calculations if p['priority'] == 'LOW']
         
         print(f"\nItems Processed: {len(self.items)}")
         print(f"PO Orders Generated: {len(self.po_calculations)}")
@@ -335,14 +412,14 @@ class SupplyChainProcessor:
         for item in critical[:5]:
             print(f"     - {item['itemCode']}: {item['daysSupply']} days")
         
-        print(f"  🟠 HIGH (10-20 days): {len(high)}")
-        print(f"  🟡 MEDIUM: {len([p for p in self.po_calculations if p['priority'] == 'MEDIUM'])}")
-        print(f"  🟢 LOW: {len([p for p in self.po_calculations if p['priority'] == 'LOW'])}")
+        print(f"  🟠 LOW (10-20 days): {len(low)}")
+        print(f"  🟢 OPTIMAL (20-90 days): {len([p for p in self.po_calculations if p['priority'] == 'OPTIMAL'])}")
+        print(f"  🔵 HIGH (> 90 days): {len([p for p in self.po_calculations if p['priority'] == 'HIGH'])}")
         
         print(f"\nContainer Summary:")
         df = pd.DataFrame(self.po_calculations)
-        print(f"  40ft containers: {len(df[df['containerType'] == '40ft'])}")
-        print(f"  20ft containers: {len(df[df['containerType'] == '20ft'])}")
+        print(f"  40ft containers: {df['containers40ft'].sum()}")
+        print(f"  20ft containers: {df['containers20ft'].sum()}")
         print(f"  Total CBM: {df['cbmTotal'].sum():.2f}")
         
         print(f"\nSupplier Distribution:")

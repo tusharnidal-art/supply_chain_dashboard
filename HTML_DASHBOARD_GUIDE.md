@@ -137,7 +137,7 @@ Example:
 - Current Stock: 2,500 units
 - PO Quantity: 10,350 - 2,500 = 7,850 units
 - Containers: 7,850 ÷ 2,100 per 40ft = 3.7 → need 4 containers
-- Total CBM: (7,850 ÷ 24) × 0.00128 = 41.8 CBM
+- Total CBM: 7,850 ctn × 24 pcs × 0.00128 = 241.15 CBM
 ```
 
 ---
@@ -164,30 +164,60 @@ Example:
 
 ## CSV File Format
 
-### Sales Data Format
-Save as: `sales_data.csv`
+You can upload `.csv` files (comma, semicolon or tab separated) or Excel files (`.xlsx`, `.xls`,
+`.xlsm`). Excel files need an internet connection the first time, to load the Excel reader; CSV
+works fully offline. Column names are matched loosely (`Item Code`, `Item_Code` and `ItemCode`
+all work), the header row can be anywhere in the first 15 rows, and in a workbook the first sheet
+with the required columns is used. The **CSV templates** links on the Dashboard tab download
+ready-to-fill examples.
 
-```
-Date,Item_Code,Item_Name,Purchases,Sales,Balance
-2026-02-01,321601,Richina Basil Seed-Mango,2100,1200,2500
-2026-02-02,321601,Richina Basil Seed-Mango,0,950,1550
-2026-02-03,321601,Richina Basil Seed-Mango,0,850,700
-```
+After each upload the box shows what was loaded, any rows that were skipped and why, and any
+assumptions made (for example a missing MOQ treated as 1).
 
-**Note:** 
-- Purchases = Items received (INC)
-- Sales = Items sold (DEC)
-- Balance = Current stock on that day
+All quantities are in **cartons**.
 
 ### Inventory Format
 Save as: `inventory_current.csv`
 
 ```
-Item_Code,Item_Name,Current_Qty,Supplier_Code,MOQ,Lead_Time,Container_Type
-321601,Richina Basil Seed-Mango,2500,V20183,450,80,40ft
-321602,Richina Basil Seed-Strawberry,1800,V20183,450,80,40ft
-120405,Farm Fresh Chakki Fresh,2472,V20185,1000,7,20ft
+Item_Code,Item_Name,Current_Qty,Supplier_Code,MOQ,Lead_Time,Container_Type,Base_Qty,CBM,20ft,40ft
+321601,Richina Basil Seed-Mango,2500,V20183,450,80,40ft,24,0.00128,1000,2100
+120405,Farm Fresh Chakki Fresh,2472,V20185,1000,7,20ft,4,0.025,,
 ```
+
+- Required: `Item_Code`, `Current_Qty` (also accepted: `Qty(Ctn)`, `Stock`, `Balance`)
+- `Lead_Time` can be left out if you upload a suppliers file
+- `20ft` / `40ft` = cartons per container. If blank, capacity is estimated from `CBM` × `Base_Qty`
+  (CBM per piece × pieces per carton) or `CBM_Per_Carton`
+- `Container_Type` blank = mix 40ft and 20ft as needed
+- An `Avg_Daily` column can be used instead of a sales file
+
+### Sales Data Format
+Save as: `sales_data.csv`
+
+```
+Date,Item_Code,Sales
+2026-02-01,321601,1200
+2026-02-02,321601,950
+2026-02-03,321601,850
+```
+
+- Required: `Item_Code`, `Sales` (also accepted: `DEC`), and `Date` or `Month`
+- Dates: `YYYY-MM-DD` or `DD/MM/YYYY`. Months: `Feb 2026` or `2026-02` (one row per item per month)
+- Average daily sales = total sales ÷ days covered by the whole file (first to last date, or the
+  full calendar months listed), so days with no row count as zero sales
+- Other columns (Purchases, Balance, Item_Name) are ignored
+
+### Suppliers Format (optional)
+Save as: `suppliers.csv`
+
+```
+Supplier_Code,Supplier_Name,Lead_Time,Container_Type
+V20183,YU DAT BS,80,40ft
+V20185,Local Supplier A,7,20ft
+```
+
+A lead time on the inventory row takes priority over the supplier's lead time.
 
 ---
 

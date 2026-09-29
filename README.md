@@ -119,19 +119,30 @@ npm start
 Days Needed = Inventory Days + Lead Time + Safety Buffer
 Example: 30 + 80 + 7 = 117 days
 
-Required Qty = (Avg Daily Sales × Days Needed) rounded to MOQ
-Example: (85 units/day × 117 days) = 9,945 units
-Round to MOQ 450: = 9,900 units (21 × 450)
+Required Qty = (Avg Daily Sales × Days Needed) rounded UP to a multiple of MOQ
+Example: (85 ctn/day × 117 days) = 9,945 ctn
+Round up to MOQ 450: = 10,350 ctn (23 × 450)
 
 PO Qty = Required Qty - Current Stock (if positive)
-Example: 9,900 - 2,500 = 7,400 units to order
+Example: 10,350 - 2,500 = 7,850 ctn to order
 
-Containers = PO Qty ÷ Container Capacity
-Example: 7,400 ÷ 2,100 per 40ft = 3.5 → 4 containers
+Containers = PO Qty ÷ Container Capacity (cartons per container)
+Example: 7,850 ÷ 2,100 per 40ft = 3.7 → 4 × 40ft (93% full)
 
-Total CBM = (PO Qty ÷ Base Qty) × CBM per unit
-Example: (7,400 ÷ 24) × 0.00128 = 39.4 CBM
+Total CBM = PO Qty × Base Qty × CBM per piece
+Example: 7,850 × 24 × 0.00128 = 241.15 CBM
 ```
+
+All quantities are in **cartons**. `CBM` is the volume of one piece and `Base Qty` is pieces per
+carton (as in the ItemData sheet); you can instead give `CBM_Per_Carton`.
+
+**Container choice:** if the item or its supplier has a container type (20ft/40ft), only that size
+is used. Otherwise 40ft containers are filled and any remainder that fits goes in one 20ft.
+If an item has no 20ft/40ft capacity, capacity is estimated from its carton volume and the usable
+container volume in Settings (default 28 / 58 CBM), and the PO shows "est.".
+
+**Status:** CRITICAL < 10 days, LOW 10–20, OPTIMAL 20–90, HIGH > 90 days of stock. Items with no
+sales show NO SALES and get no PO.
 
 ---
 
