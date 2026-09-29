@@ -318,58 +318,6 @@
             font-size: 11px;
         }
 
-        .analytics-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 16px;
-        }
-
-        .analytics-card {
-            background-color: #0f172a;
-            padding: 16px;
-            border-radius: 6px;
-            border-left: 4px solid #3b82f6;
-        }
-
-        .analytics-card h4 {
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 12px;
-            color: #e2e8f0;
-        }
-
-        .metric {
-            display: flex;
-            justify-content: space-between;
-            font-size: 11px;
-            color: #cbd5e1;
-            margin-top: 4px;
-            padding-top: 4px;
-            border-top: 1px solid #334155;
-        }
-
-        .metric:first-of-type {
-            border-top: none;
-            padding-top: 0;
-            margin-top: 0;
-        }
-
-        .metric-label {
-            color: #94a3b8;
-        }
-
-        .metric-value {
-            font-weight: 600;
-        }
-
-        .text-green {
-            color: #22c55e;
-        }
-
-        .text-blue {
-            color: #3b82f6;
-        }
-
         .status-summary {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -495,6 +443,173 @@
         .est {
             color: #f59e0b;
             font-size: 11px;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: default;
+            transform: none;
+        }
+
+        tr.po-group td {
+            background-color: #0f172a;
+            color: #cbd5e1;
+            font-size: 12px;
+        }
+
+        tr.clickable {
+            cursor: pointer;
+        }
+
+        .trend-up {
+            color: #22c55e;
+        }
+
+        .trend-down {
+            color: #f97316;
+        }
+
+        .trend-flat {
+            color: #94a3b8;
+        }
+
+        /* Chart colours: validated categorical slots 1-2 for a dark surface */
+        .chart-card {
+            --series-1: #3987e5;
+            --series-2: #d95926;
+            background-color: #1e293b;
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .chart-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #e2e8f0;
+            margin-bottom: 8px;
+        }
+
+        .chart-legend {
+            display: flex;
+            gap: 16px;
+            font-size: 12px;
+            color: #cbd5e1;
+            margin-bottom: 8px;
+        }
+
+        .legend-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .legend-key {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            display: inline-block;
+        }
+
+        .chart {
+            position: relative;
+            width: 100%;
+        }
+
+        .chart svg {
+            display: block;
+        }
+
+        .chart .grid-line {
+            stroke: #334155;
+            stroke-width: 1;
+        }
+
+        .chart .axis-line {
+            stroke: #475569;
+            stroke-width: 1;
+        }
+
+        .chart .axis-label {
+            fill: #94a3b8;
+            font-size: 11px;
+        }
+
+        .chart .ref-line {
+            stroke: #cbd5e1;
+            stroke-width: 1.5;
+            stroke-dasharray: 4 4;
+        }
+
+        .chart .ref-label {
+            fill: #cbd5e1;
+            font-size: 11px;
+            paint-order: stroke;
+            stroke: #1e293b;
+            stroke-width: 4px;
+            stroke-linejoin: round;
+        }
+
+        .chart .bar-group {
+            outline: none;
+        }
+
+        .chart .bar-group.hover .bar,
+        .chart .bar-group:focus .bar {
+            filter: brightness(1.2);
+        }
+
+        .chart .bar-group:focus-visible rect {
+            stroke: #e2e8f0;
+            stroke-width: 1;
+        }
+
+        .chart-tooltip {
+            display: none;
+            position: absolute;
+            pointer-events: none;
+            background-color: #0f172a;
+            border: 1px solid #475569;
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 12px;
+            color: #94a3b8;
+            white-space: nowrap;
+            z-index: 1;
+        }
+
+        .tooltip-title {
+            color: #cbd5e1;
+            margin-bottom: 4px;
+        }
+
+        .tooltip-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .tooltip-row strong {
+            color: #f0f9ff;
+        }
+
+        .tooltip-key {
+            width: 12px;
+            height: 2px;
+            display: inline-block;
+        }
+
+        .chart-table {
+            margin-top: 12px;
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        .chart-table summary {
+            cursor: pointer;
+        }
+
+        .chart-table table {
+            margin-top: 8px;
         }
 
         @media (max-width: 768px) {
@@ -660,8 +775,15 @@
 
         <!-- Tab 3: PO Generator -->
         <div id="po-generator" class="tab-content">
-            <div style="margin-bottom: 24px;">
+            <div class="controls">
                 <button onclick="generatePO()">+ Generate PO</button>
+                <div class="control-group">
+                    <label for="poSupplierFilter">Supplier</label>
+                    <select id="poSupplierFilter" onchange="updatePOTable()">
+                        <option value="ALL">All Suppliers</option>
+                    </select>
+                </div>
+                <button class="secondary" id="poExport" onclick="exportPOs()" disabled>⬇ Export CSV</button>
             </div>
 
             <div class="po-summary" id="poSummary"></div>
@@ -693,10 +815,52 @@
 
         <!-- Tab 4: Analytics -->
         <div id="analytics" class="tab-content">
-            <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">4-Month Sales Analysis</h3>
-            <div class="analytics-cards" id="analyticsCards">
-                <div class="empty-state" style="grid-column: 1 / -1;">
-                    <p>Upload sales data to see analytics</p>
+            <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 4px;">Sales Trends</h3>
+            <p class="subtitle" id="trendPeriod" style="margin-bottom: 16px;"></p>
+
+            <div id="analyticsEmpty" class="empty-state">
+                <p>Upload a sales file on the Dashboard tab to see monthly trends</p>
+            </div>
+
+            <div id="analyticsBody" style="display: none;">
+                <div class="controls">
+                    <div class="control-group">
+                        <label for="trendItem">Item</label>
+                        <select id="trendItem" onchange="renderTrendChart()"></select>
+                    </div>
+                </div>
+
+                <div class="chart-card">
+                    <p class="chart-title" id="trendTitle"></p>
+                    <div class="chart-legend" id="trendLegend"></div>
+                    <div class="chart" id="trendChart">
+                        <div class="chart-tooltip" id="trendTooltip" role="status"></div>
+                    </div>
+                    <details class="chart-table">
+                        <summary>Show as table</summary>
+                        <table id="trendDataTable">
+                            <thead></thead>
+                            <tbody></tbody>
+                        </table>
+                    </details>
+                </div>
+
+                <h3 style="font-size: 16px; font-weight: 600; margin: 24px 0 12px;">Trend by Item</h3>
+                <p class="subtitle" style="margin-bottom: 12px;">Daily sales rate in the first vs the last month. Click a row to chart it.</p>
+                <div class="table-wrapper">
+                    <table id="trendTable">
+                        <thead>
+                            <tr>
+                                <th>Item Code</th>
+                                <th>Item Name</th>
+                                <th style="text-align: center;">First Month (ctn/day)</th>
+                                <th style="text-align: center;">Last Month (ctn/day)</th>
+                                <th style="text-align: center;">Change</th>
+                                <th style="text-align: center;">Trend</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -759,10 +923,31 @@
             { code: '120405', name: 'Farm Fresh Chakki Fresh (Atta)-5Kg X 4', currentStock: 2472, moq: 1000, supplier: 'V20185', container: '20ft', baseQty: 4, cbm: 0.025, avgDaily: 180 },
         ];
 
+        // Sample monthly sales for the Analytics tab, shaped so the last three months average
+        // to each item's avgDaily. Factors give a mix of rising, falling and steady items.
+        function buildSampleMonthly() {
+            const months = ['2025-11', '2025-12', '2026-01', '2026-02'];
+            const factors = [[0.85, 0.95, 1.0, 1.05], [1.15, 1.05, 1.0, 0.95], [1.0, 1.02, 0.98, 1.0]];
+            const purchaseFactors = [1.2, 0.8, 1.1, 0.9];
+            const days = {};
+            months.forEach(key => { days[key] = daysInMonth(+key.slice(0, 4), +key.slice(5, 7)); });
+            const byItem = {};
+            sampleInventoryData.forEach((item, index) => {
+                const f = factors[index % factors.length];
+                byItem[item.code] = {};
+                months.forEach((key, m) => {
+                    const sales = Math.round(item.avgDaily * f[m] * days[key]);
+                    byItem[item.code][key] = { sales, purchases: Math.round(sales * purchaseFactors[m]) };
+                });
+            });
+            return { months, days, byItem, hasPurchases: true };
+        }
+
         let suppliers = sampleSuppliers.map(s => ({ ...s }));
         let inventory = sampleInventoryData.map(i => ({ ...i }));
         let salesStats = null; // Map of item code -> { totalSales, avgDaily }, from an uploaded sales file
         let salesPeriod = null; // { days, label }
+        let salesMonthly = null; // { months, days: {month: days covered}, byItem: {code: {month: {sales, purchases}}}, hasPurchases }
         let poOrders = [];
         let poGenerated = false;
         const loadedFiles = { inventory: null, sales: null, suppliers: null };
@@ -942,6 +1127,7 @@
                 date: ['date', 'day', 'transactiondate', 'salesdate'],
                 month: ['month', 'period'],
                 sales: ['sales', 'dec', 'qtysold', 'sold', 'salesqty', 'out'],
+                purchases: ['purchases', 'inc', 'in', 'received', 'purchaseqty'],
             },
             required: [['code'], ['sales'], ['date', 'month']],
         };
@@ -1163,7 +1349,9 @@
         function parseSales(table) {
             const { rows, headerIndex, map } = table;
             const byDate = 'date' in map;
+            const hasPurchases = 'purchases' in map;
             const totals = new Map();
+            const byItem = {};
             const issues = [];
             const months = new Set();
             let minDate = null, maxDate = null;
@@ -1178,19 +1366,37 @@
                 const rawSales = cell(row, map, 'sales');
                 const sales = String(rawSales ?? '').trim() === '' ? 0 : parseNum(rawSales);
                 if (isNaN(sales)) { issues.push(`Row ${line} (${code}): sales "${rawSales}" is not a number`); continue; }
+                const purchases = hasPurchases ? (parseNum(cell(row, map, 'purchases')) || 0) : 0;
 
+                let key;
                 if (byDate) {
                     const t = parseDate(cell(row, map, 'date'));
                     if (t === null) { issues.push(`Row ${line} (${code}): date "${cell(row, map, 'date')}" not recognised`); continue; }
                     minDate = minDate === null ? t : Math.min(minDate, t);
                     maxDate = maxDate === null ? t : Math.max(maxDate, t);
+                    key = new Date(t).toISOString().slice(0, 7);
                 } else {
-                    const key = parseMonth(cell(row, map, 'month'));
+                    key = parseMonth(cell(row, map, 'month'));
                     if (!key) { issues.push(`Row ${line} (${code}): month "${cell(row, map, 'month')}" not recognised`); continue; }
-                    months.add(key);
                 }
+                months.add(key);
                 totals.set(code, (totals.get(code) || 0) + sales);
+                byItem[code] = byItem[code] || {};
+                const bucket = byItem[code][key] = byItem[code][key] || { sales: 0, purchases: 0 };
+                bucket.sales += sales;
+                bucket.purchases += purchases;
             }
+
+            // Days each month contributes: the whole month, or only the part inside the file's date range.
+            const sortedMonths = [...months].sort();
+            const monthDays = {};
+            sortedMonths.forEach(key => {
+                const year = +key.slice(0, 4), month = +key.slice(5, 7);
+                if (!byDate) { monthDays[key] = daysInMonth(year, month); return; }
+                const first = Math.max(Date.UTC(year, month - 1, 1), minDate);
+                const last = Math.min(Date.UTC(year, month - 1, daysInMonth(year, month)), maxDate);
+                monthDays[key] = Math.round((last - first) / 86400000) + 1;
+            });
 
             let days = 0, label = '';
             if (byDate && minDate !== null) {
@@ -1198,10 +1404,10 @@
                 const fmt = t => new Date(t).toISOString().slice(0, 10);
                 label = `${fmt(minDate)} to ${fmt(maxDate)}`;
             } else if (months.size) {
-                const sorted = [...months].sort();
-                days = sorted.reduce((sum, key) => sum + daysInMonth(+key.slice(0, 4), +key.slice(5, 7)), 0);
-                label = `${sorted.length} month(s), ${sorted[0]} to ${sorted[sorted.length - 1]}`;
+                days = sortedMonths.reduce((sum, key) => sum + monthDays[key], 0);
+                label = `${sortedMonths.length} month(s), ${sortedMonths[0]} to ${sortedMonths[sortedMonths.length - 1]}`;
             }
+            const monthly = { months: sortedMonths, days: monthDays, byItem, hasPurchases };
 
             const stats = new Map();
             if (days > 0) {
@@ -1212,7 +1418,7 @@
             }
             const warnings = [];
             if (days > 0 && days < 28) warnings.push(`File covers only ${days} day(s); averages may be unreliable`);
-            return { stats, period: days > 0 ? { days, label } : null, issues, warnings };
+            return { stats, monthly, period: days > 0 ? { days, label } : null, issues, warnings };
         }
 
         function parseSuppliers(table) {
@@ -1288,6 +1494,7 @@
                     if (!parsed.items.length) throw new Error('No valid item rows found.');
                     inventory = parsed.items;
                     if (!loadedFiles.suppliers) supplierMaster = [];
+                    if (!loadedFiles.sales) salesMonthly = null; // drop the sample trends
                     rebuildSuppliers();
                     const noLead = inventory.filter(item => leadTimeOf(item) === null).length;
                     if (noLead) parsed.warnings.push(`${noLead} item(s) have no lead time (from the file or a supplier); 0 days assumed`);
@@ -1298,6 +1505,7 @@
                     if (!parsed.period) throw new Error('No valid sales rows found.');
                     salesStats = parsed.stats;
                     salesPeriod = parsed.period;
+                    salesMonthly = parsed.monthly;
                     const matched = inventory.filter(item => salesStats.has(item.code)).length;
                     if (matched < inventory.length) parsed.warnings.push(`${inventory.length - matched} of ${inventory.length} inventory item(s) have no rows in this file`);
                     result = { ...parsed, summary: `Loaded sales for ${parsed.stats.size} items over ${parsed.period.days} days (${parsed.period.label}) from ${file.name}` };
@@ -1316,17 +1524,86 @@
             }
         }
 
-        function resetToSample() {
+        function loadSampleData() {
             suppliers = sampleSuppliers.map(s => ({ ...s }));
             supplierMaster = sampleSuppliers.map(s => ({ ...s }));
             inventory = sampleInventoryData.map(i => ({ ...i }));
             salesStats = null;
             salesPeriod = null;
+            salesMonthly = buildSampleMonthly();
             Object.keys(loadedFiles).forEach(k => { loadedFiles[k] = null; });
-            ['inventory', 'sales', 'suppliers'].forEach(t => { document.getElementById(`${t}Status`).innerHTML = ''; });
             poOrders = [];
             poGenerated = false;
+        }
+
+        function resetToSample() {
+            if (loadedFiles.inventory || loadedFiles.sales || loadedFiles.suppliers) {
+                if (!confirm('Replace your uploaded data with the sample data? Your uploaded data will be removed from this browser.')) return;
+            }
+            loadSampleData();
+            ['inventory', 'sales', 'suppliers'].forEach(t => { document.getElementById(`${t}Status`).innerHTML = ''; });
             refreshAll();
+        }
+
+        // ---------- Saving in this browser ----------
+
+        const STORAGE_KEY = 'misbDashboard.v1';
+        const SETTING_INPUTS = ['inventoryDays', 'safetyDays', 'usableVol20', 'usableVol40'];
+        let saveWarning = '';
+
+        function saveState() {
+            const state = {
+                settings: Object.fromEntries(SETTING_INPUTS.map(id => [id, document.getElementById(id).value])),
+                loadedFiles,
+                poGenerated,
+            };
+            // Uploaded data is saved; sample data is rebuilt on load instead.
+            if (loadedFiles.inventory || loadedFiles.sales || loadedFiles.suppliers) {
+                Object.assign(state, {
+                    inventory,
+                    supplierMaster,
+                    salesStats: salesStats ? [...salesStats] : null,
+                    salesPeriod,
+                    salesMonthly,
+                });
+            }
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+                saveWarning = '';
+            } catch (err) {
+                saveWarning = 'Could not save in this browser (storage full or blocked); data will be lost on reload.';
+            }
+        }
+
+        function loadState() {
+            let state = null;
+            try {
+                state = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+            } catch (err) {
+                state = null;
+            }
+            loadSampleData();
+            if (!state) return;
+
+            Object.entries(state.settings || {}).forEach(([id, value]) => {
+                const input = document.getElementById(id);
+                if (input && value !== undefined && value !== null) input.value = value;
+            });
+            document.getElementById('defaultInvDays').value = document.getElementById('inventoryDays').value;
+            document.getElementById('defaultSafeDays').value = document.getElementById('safetyDays').value;
+            document.getElementById('invDaysDisplay').textContent = document.getElementById('inventoryDays').value;
+            document.getElementById('safeDaysDisplay').textContent = document.getElementById('safetyDays').value;
+
+            if (state.inventory) {
+                inventory = state.inventory;
+                supplierMaster = state.supplierMaster || [];
+                salesStats = state.salesStats ? new Map(state.salesStats) : null;
+                salesPeriod = state.salesPeriod || null;
+                salesMonthly = state.salesMonthly || null;
+                Object.assign(loadedFiles, state.loadedFiles || {});
+            }
+            poGenerated = Boolean(state.poGenerated);
+            rebuildSuppliers();
         }
 
         const TEMPLATES = {
@@ -1354,7 +1631,11 @@
         // ---------- Rendering ----------
 
         function init() {
+            loadState();
             refreshAll();
+            window.addEventListener('resize', () => {
+                if (document.getElementById('analytics').classList.contains('active')) renderTrendChart();
+            });
         }
 
         function refreshAll() {
@@ -1363,6 +1644,8 @@
             updateInventoryTable();
             if (poGenerated) generatePO(); else updatePOTable();
             updateStats();
+            updateAnalytics();
+            saveState();
             updateDataSourceLabel();
         }
 
@@ -1371,6 +1654,9 @@
             parts.push(loadedFiles.inventory ? `Inventory: ${loadedFiles.inventory}` : 'Inventory: sample data');
             if (loadedFiles.sales) parts.push(`Sales: ${loadedFiles.sales}`);
             if (loadedFiles.suppliers) parts.push(`Suppliers: ${loadedFiles.suppliers}`);
+            if (loadedFiles.inventory || loadedFiles.sales || loadedFiles.suppliers) {
+                parts.push(saveWarning || 'Saved in this browser');
+            }
             document.getElementById('dataSourceLabel').textContent = parts.join(' · ');
         }
 
@@ -1379,6 +1665,7 @@
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById(tabName).classList.add('active');
             button.classList.add('active');
+            if (tabName === 'analytics') renderTrendChart(); // needs the tab visible to measure its width
         }
 
         function onPlanningDaysChange() {
@@ -1388,6 +1675,7 @@
             document.getElementById('defaultSafeDays').value = document.getElementById('safetyDays').value;
             updateInventoryTable();
             if (poGenerated) generatePO();
+            saveState();
         }
 
         function applySettingsDays() {
@@ -1397,14 +1685,16 @@
         }
 
         function updateSupplierFilter() {
-            const select = document.getElementById('supplierFilter');
-            const previous = select.value;
             const keys = [...new Set(inventory.map(supplierKey).filter(Boolean))];
-            select.innerHTML = '<option value="ALL">All Suppliers</option>' + keys.map(key => {
-                const supplier = suppliers.find(s => s.code === key);
-                return `<option value="${escapeHtml(key)}">${escapeHtml(supplier ? supplier.name : key)}</option>`;
-            }).join('');
-            select.value = keys.includes(previous) ? previous : 'ALL';
+            ['supplierFilter', 'poSupplierFilter'].forEach(id => {
+                const select = document.getElementById(id);
+                const previous = select.value;
+                select.innerHTML = '<option value="ALL">All Suppliers</option>' + keys.map(key => {
+                    const supplier = suppliers.find(s => s.code === key);
+                    return `<option value="${escapeHtml(key)}">${escapeHtml(supplier ? supplier.name : key)}</option>`;
+                }).join('');
+                select.value = keys.includes(previous) ? previous : 'ALL';
+            });
         }
 
         function updateInventoryTable() {
@@ -1481,44 +1771,111 @@
             updateStats();
         }
 
+        function poTotals(orders) {
+            return {
+                lines: orders.length,
+                cartons: orders.reduce((sum, po) => sum + po.quantity, 0),
+                n40: orders.reduce((sum, po) => sum + (po.containers ? po.containers.n40 : 0), 0),
+                n20: orders.reduce((sum, po) => sum + (po.containers ? po.containers.n20 : 0), 0),
+                cbm: orders.reduce((sum, po) => sum + po.cbmTotal, 0),
+            };
+        }
+
+        function describeTotals(t) {
+            return `${t.lines} line(s) · ${formatNum(t.cartons)} cartons · ${t.n40} × 40ft + ${t.n20} × 20ft · ${formatNum(t.cbm, 2)} CBM`;
+        }
+
+        // POs shown in the table and exported: filtered to one supplier or all, grouped by supplier.
+        function visiblePOGroups() {
+            const filter = document.getElementById('poSupplierFilter').value;
+            const groups = new Map();
+            poOrders
+                .filter(po => filter === 'ALL' || po.supplierCode === filter)
+                .forEach(po => {
+                    const key = po.supplierCode || po.supplier;
+                    if (!groups.has(key)) groups.set(key, { code: po.supplierCode, name: po.supplier, orders: [] });
+                    groups.get(key).orders.push(po);
+                });
+            return [...groups.values()].sort((a, b) => String(a.name).localeCompare(String(b.name)));
+        }
+
         function updatePOTable() {
             const tbody = document.querySelector('#poTable tbody');
             const emptyDiv = document.getElementById('poEmpty');
             const summary = document.getElementById('poSummary');
+            const exportButton = document.getElementById('poExport');
             tbody.innerHTML = '';
 
-            if (poOrders.length === 0) {
+            const groups = visiblePOGroups();
+            exportButton.disabled = groups.length === 0;
+            if (groups.length === 0) {
                 emptyDiv.style.display = 'block';
-                emptyDiv.querySelector('p').textContent = poGenerated
-                    ? 'No purchase orders needed with the current stock, sales and settings'
-                    : 'Click "Generate PO" to create purchase orders based on current settings';
+                emptyDiv.querySelector('p').textContent = !poGenerated
+                    ? 'Click "Generate PO" to create purchase orders based on current settings'
+                    : poOrders.length
+                        ? 'No purchase orders for this supplier'
+                        : 'No purchase orders needed with the current stock, sales and settings';
                 summary.textContent = '';
                 return;
             }
 
             emptyDiv.style.display = 'none';
-            const n40 = poOrders.reduce((sum, po) => sum + (po.containers ? po.containers.n40 : 0), 0);
-            const n20 = poOrders.reduce((sum, po) => sum + (po.containers ? po.containers.n20 : 0), 0);
-            const cbm = poOrders.reduce((sum, po) => sum + po.cbmTotal, 0);
-            summary.textContent = `${poOrders.length} PO line(s) · ${formatNum(poOrders.reduce((s, po) => s + po.quantity, 0))} cartons · ${n40} × 40ft + ${n20} × 20ft · ${formatNum(cbm, 2)} CBM`;
+            summary.textContent = `Total: ${describeTotals(poTotals(groups.flatMap(g => g.orders)))}`;
 
-            poOrders.forEach(po => {
-                const plan = po.containers;
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td style="color: #3b82f6; font-weight: 600;">${escapeHtml(po.id)}</td>
-                    <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; font-size: 11px;" title="${escapeHtml(po.itemName)}">${escapeHtml(po.itemCode)}</td>
-                    <td style="text-align: center; font-weight: 600;">${formatNum(po.quantity)}</td>
-                    <td style="text-align: center;">${plan ? escapeHtml(plan.label) + (plan.estimated ? ' <span class="est" title="Capacity estimated from CBM">est.</span>' : '') : '—'}</td>
-                    <td style="text-align: center;">${plan ? `${Math.round(plan.fill * 100)}%` : '—'}</td>
-                    <td style="text-align: center;">${po.cbmTotal > 0 ? po.cbmTotal.toFixed(2) : '—'}</td>
-                    <td>${escapeHtml(po.supplier)}</td>
-                    <td style="text-align: center;">${po.leadTime} days</td>
-                    <td>${po.requiredDate}</td>
-                    <td style="text-align: center;"><span class="status-badge" style="background-color: #22c55e;">PENDING</span></td>
-                `;
-                tbody.appendChild(row);
+            groups.forEach(group => {
+                const header = document.createElement('tr');
+                header.className = 'po-group';
+                header.innerHTML = `<td colspan="10"><strong>${escapeHtml(group.name)}</strong>${group.code && group.code !== group.name ? ` (${escapeHtml(group.code)})` : ''} — ${escapeHtml(describeTotals(poTotals(group.orders)))}</td>`;
+                tbody.appendChild(header);
+                group.orders.forEach(po => tbody.appendChild(poRow(po)));
             });
+        }
+
+        function csvField(value) {
+            let s = String(value ?? '');
+            if (/^[=+@]/.test(s) || /^-[^0-9]/.test(s)) s = `'${s}`; // stop spreadsheets treating text as a formula
+            return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+        }
+
+        function exportPOs() {
+            const header = ['Supplier_Code', 'Supplier_Name', 'PO_ID', 'Item_Code', 'Item_Name', 'Qty_Ctn', 'MOQ',
+                'Containers', 'Container_Fill_Pct', 'Capacity_Estimated', 'CBM', 'Lead_Time_Days', 'Required_Date'];
+            const lines = [header.join(',')];
+            visiblePOGroups().forEach(group => group.orders.forEach(po => {
+                const plan = po.containers;
+                lines.push([
+                    po.supplierCode, po.supplier, po.id, po.itemCode, po.itemName, po.quantity, po.moq,
+                    plan ? plan.label.replace(/×/g, 'x') : '', plan ? Math.round(plan.fill * 100) : '',
+                    plan ? (plan.estimated ? 'yes' : 'no') : '', po.cbmTotal.toFixed(2), po.leadTime, po.requiredDate,
+                ].map(csvField).join(','));
+            }));
+            const filter = document.getElementById('poSupplierFilter').value;
+            const stamp = new Date().toISOString().slice(0, 10);
+            const suffix = filter === 'ALL' ? 'all_suppliers' : filter.replace(/[^A-Za-z0-9_-]+/g, '_');
+            const blob = new Blob(['﻿' + lines.join('\r\n') + '\r\n'], { type: 'text/csv' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `purchase_orders_${suffix}_${stamp}.csv`;
+            link.click();
+            URL.revokeObjectURL(link.href);
+        }
+
+        function poRow(po) {
+            const plan = po.containers;
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td style="color: #3b82f6; font-weight: 600;">${escapeHtml(po.id)}</td>
+                <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; font-size: 11px;" title="${escapeHtml(po.itemName)}">${escapeHtml(po.itemCode)}</td>
+                <td style="text-align: center; font-weight: 600;">${formatNum(po.quantity)}</td>
+                <td style="text-align: center;">${plan ? escapeHtml(plan.label) + (plan.estimated ? ' <span class="est" title="Capacity estimated from CBM">est.</span>' : '') : '—'}</td>
+                <td style="text-align: center;">${plan ? `${Math.round(plan.fill * 100)}%` : '—'}</td>
+                <td style="text-align: center;">${po.cbmTotal > 0 ? formatNum(po.cbmTotal, 2) : '—'}</td>
+                <td>${escapeHtml(po.supplier)}</td>
+                <td style="text-align: center;">${po.leadTime} days</td>
+                <td>${po.requiredDate}</td>
+                <td style="text-align: center;"><span class="status-badge" style="background-color: #22c55e;">PENDING</span></td>
+            `;
+            return row;
         }
 
         function updateSupplierSummary() {
@@ -1551,6 +1908,225 @@
             document.getElementById('countOptimal').textContent = counts.optimal;
             document.getElementById('countHigh').textContent = counts.high;
             document.getElementById('countNoSales').textContent = counts.nosales;
+        }
+
+        // ---------- Analytics ----------
+
+        const SERIES = [
+            { key: 'sales', label: 'Sales', color: 'var(--series-1)' },
+            { key: 'purchases', label: 'Purchases', color: 'var(--series-2)' },
+        ];
+
+        // Per-month totals and per-day rates for one item, or summed over all inventory items.
+        function monthlySeries(code) {
+            if (!salesMonthly) return [];
+            const codes = code === 'ALL'
+                ? inventory.map(i => i.code).filter(c => salesMonthly.byItem[c])
+                : [code];
+            return salesMonthly.months.map(month => {
+                let sales = 0, purchases = 0;
+                codes.forEach(c => {
+                    const bucket = salesMonthly.byItem[c] && salesMonthly.byItem[c][month];
+                    if (bucket) { sales += bucket.sales; purchases += bucket.purchases; }
+                });
+                const days = salesMonthly.days[month] || 1;
+                return { month, days, sales, purchases, salesPerDay: sales / days, purchasesPerDay: purchases / days };
+            });
+        }
+
+        function monthLabel(key) {
+            const [year, month] = key.split('-').map(Number);
+            return new Date(Date.UTC(year, month - 1, 1)).toLocaleString(undefined, { month: 'short', year: 'numeric', timeZone: 'UTC' });
+        }
+
+        // Compares the first and last month's daily sales rate.
+        function trendOf(series) {
+            if (series.length < 2) return null;
+            const first = series[0].salesPerDay, last = series[series.length - 1].salesPerDay;
+            if (first <= 0) return last > 0 ? { change: null, label: '▲ New sales', key: 'up' } : null;
+            const change = (last - first) / first;
+            if (change >= 0.1) return { change, label: '▲ Rising', key: 'up' };
+            if (change <= -0.1) return { change, label: '▼ Falling', key: 'down' };
+            return { change, label: '● Steady', key: 'flat' };
+        }
+
+        function updateAnalytics() {
+            const select = document.getElementById('trendItem');
+            const empty = document.getElementById('analyticsEmpty');
+            const body = document.getElementById('analyticsBody');
+            const withHistory = salesMonthly ? inventory.filter(i => salesMonthly.byItem[i.code]) : [];
+
+            if (!withHistory.length) {
+                empty.style.display = 'block';
+                body.style.display = 'none';
+                return;
+            }
+            empty.style.display = 'none';
+            body.style.display = 'block';
+
+            const previous = select.value;
+            select.innerHTML = '<option value="ALL">All items (total)</option>' + withHistory
+                .map(i => `<option value="${escapeHtml(i.code)}">${escapeHtml(i.code)} — ${escapeHtml(i.name)}</option>`).join('');
+            select.value = withHistory.some(i => i.code === previous) ? previous : 'ALL';
+
+            const tbody = document.querySelector('#trendTable tbody');
+            tbody.innerHTML = '';
+            withHistory.forEach(item => {
+                const series = monthlySeries(item.code);
+                const trend = trendOf(series);
+                const first = series[0], last = series[series.length - 1];
+                const row = document.createElement('tr');
+                row.className = 'clickable';
+                row.tabIndex = 0;
+                row.innerHTML = `
+                    <td>${escapeHtml(item.code)}</td>
+                    <td style="max-width: 280px; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(item.name)}</td>
+                    <td style="text-align: center;">${formatNum(first.salesPerDay, 1)}</td>
+                    <td style="text-align: center;">${formatNum(last.salesPerDay, 1)}</td>
+                    <td style="text-align: center;">${trend && trend.change !== null ? `${trend.change > 0 ? '+' : ''}${Math.round(trend.change * 100)}%` : '—'}</td>
+                    <td style="text-align: center;" class="trend-${trend ? trend.key : 'flat'}">${trend ? trend.label : '—'}</td>
+                `;
+                const choose = () => { select.value = item.code; renderTrendChart(); document.getElementById('trendChart').scrollIntoView({ block: 'nearest' }); };
+                row.addEventListener('click', choose);
+                row.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(); } });
+                tbody.appendChild(row);
+            });
+
+            const period = salesMonthly.months.length
+                ? `${monthLabel(salesMonthly.months[0])} – ${monthLabel(salesMonthly.months[salesMonthly.months.length - 1])}`
+                : '';
+            document.getElementById('trendPeriod').textContent = loadedFiles.sales ? `From ${loadedFiles.sales}, ${period}` : `Sample data, ${period}`;
+            renderTrendChart();
+        }
+
+        function niceMax(value) {
+            if (value <= 0) return 1;
+            const magnitude = Math.pow(10, Math.floor(Math.log10(value)));
+            const step = [1, 2, 2.5, 5, 10].find(s => s * magnitude >= value / 4) * magnitude;
+            return Math.ceil(value / step) * step;
+        }
+
+        function svgEl(tag, attrs) {
+            const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+            Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
+            return el;
+        }
+
+        // Bar with a 4px rounded top, square at the baseline.
+        function barPath(x, y, w, h) {
+            const r = Math.min(4, w / 2, h);
+            return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`;
+        }
+
+        function renderTrendChart() {
+            const chart = document.getElementById('trendChart');
+            const select = document.getElementById('trendItem');
+            if (!salesMonthly || !chart.clientWidth) return;
+            const code = select.value || 'ALL';
+            const series = monthlySeries(code);
+            const shown = salesMonthly.hasPurchases ? SERIES : SERIES.slice(0, 1);
+            const reference = code === 'ALL'
+                ? inventory.reduce((sum, i) => sum + avgDailyOf(i), 0)
+                : avgDailyOf(inventory.find(i => i.code === code) || {});
+
+            document.getElementById('trendTitle').textContent = salesMonthly.hasPurchases
+                ? 'Average daily sales and purchases per month (cartons/day)'
+                : 'Average daily sales per month (cartons/day)';
+            const legend = document.getElementById('trendLegend');
+            legend.innerHTML = '';
+            if (shown.length > 1) {
+                shown.forEach(s => {
+                    const item = document.createElement('span');
+                    item.className = 'legend-item';
+                    const key = document.createElement('span');
+                    key.className = 'legend-key';
+                    key.style.background = s.color;
+                    item.appendChild(key);
+                    item.appendChild(document.createTextNode(s.label));
+                    legend.appendChild(item);
+                });
+            }
+
+            const width = chart.clientWidth, height = 280;
+            const m = { top: 16, right: 16, bottom: 32, left: 56 };
+            const plotW = width - m.left - m.right, plotH = height - m.top - m.bottom;
+            const values = series.flatMap(p => shown.map(s => p[`${s.key}PerDay`]));
+            const yMax = niceMax(Math.max(reference, ...values));
+            const y = v => m.top + plotH - (v / yMax) * plotH;
+
+            const svg = svgEl('svg', { width, height, role: 'img', 'aria-label': document.getElementById('trendTitle').textContent });
+            for (let i = 0; i <= 4; i++) {
+                const v = (yMax / 4) * i;
+                svg.appendChild(svgEl('line', { x1: m.left, x2: width - m.right, y1: y(v), y2: y(v), class: i === 0 ? 'axis-line' : 'grid-line' }));
+                const label = svgEl('text', { x: m.left - 8, y: y(v) + 4, 'text-anchor': 'end', class: 'axis-label' });
+                label.textContent = formatNum(v, v % 1 ? 1 : 0);
+                svg.appendChild(label);
+            }
+
+            const band = plotW / Math.max(series.length, 1);
+            const barW = Math.max(4, Math.min(40, (band * 0.7 - 2 * (shown.length - 1)) / shown.length));
+            const groupW = barW * shown.length + 2 * (shown.length - 1);
+            const tooltip = document.getElementById('trendTooltip');
+
+            series.forEach((point, index) => {
+                const x0 = m.left + band * index + (band - groupW) / 2;
+                const group = svgEl('g', { class: 'bar-group', tabindex: 0 });
+                group.appendChild(svgEl('rect', { x: m.left + band * index, y: m.top, width: band, height: plotH, fill: 'transparent' }));
+                shown.forEach((s, j) => {
+                    const v = point[`${s.key}PerDay`];
+                    const top = y(v);
+                    if (v > 0) group.appendChild(svgEl('path', { d: barPath(x0 + j * (barW + 2), top, barW, m.top + plotH - top), fill: s.color, class: 'bar' }));
+                });
+                const label = svgEl('text', { x: m.left + band * index + band / 2, y: height - 10, 'text-anchor': 'middle', class: 'axis-label' });
+                label.textContent = monthLabel(point.month);
+                group.appendChild(label);
+
+                const show = () => {
+                    tooltip.innerHTML = '';
+                    const title = document.createElement('div');
+                    title.className = 'tooltip-title';
+                    title.textContent = `${monthLabel(point.month)} (${point.days} days)`;
+                    tooltip.appendChild(title);
+                    shown.forEach(s => {
+                        const row = document.createElement('div');
+                        row.className = 'tooltip-row';
+                        const key = document.createElement('span');
+                        key.className = 'tooltip-key';
+                        key.style.background = s.color;
+                        const value = document.createElement('strong');
+                        value.textContent = `${formatNum(point[`${s.key}PerDay`], 1)}/day`;
+                        const rest = document.createElement('span');
+                        rest.textContent = ` ${s.label} · ${formatNum(point[s.key])} ctn`;
+                        row.append(key, value, rest);
+                        tooltip.appendChild(row);
+                    });
+                    tooltip.style.display = 'block';
+                    const left = Math.min(m.left + band * index + band / 2 + 12, width - tooltip.offsetWidth - 4);
+                    tooltip.style.left = `${Math.max(4, left)}px`;
+                    tooltip.style.top = `${m.top}px`;
+                    group.classList.add('hover');
+                };
+                const hide = () => { tooltip.style.display = 'none'; group.classList.remove('hover'); };
+                group.addEventListener('pointerenter', show);
+                group.addEventListener('pointerleave', hide);
+                group.addEventListener('focus', show);
+                group.addEventListener('blur', hide);
+                svg.appendChild(group);
+            });
+
+            if (reference > 0) {
+                svg.appendChild(svgEl('line', { x1: m.left, x2: width - m.right, y1: y(reference), y2: y(reference), class: 'ref-line' }));
+                const label = svgEl('text', { x: width - m.right, y: y(reference) - 6, 'text-anchor': 'end', class: 'ref-label' });
+                label.textContent = `Used for POs: ${formatNum(reference, 1)}/day`;
+                svg.appendChild(label);
+            }
+
+            chart.querySelectorAll('svg').forEach(el => el.remove());
+            chart.insertBefore(svg, tooltip);
+
+            const tableBody = document.querySelector('#trendDataTable tbody');
+            document.querySelector('#trendDataTable thead').innerHTML = `<tr><th>Month</th><th style="text-align: center;">Days</th>${shown.map(s => `<th style="text-align: center;">${s.label} (ctn)</th><th style="text-align: center;">${s.label}/day</th>`).join('')}</tr>`;
+            tableBody.innerHTML = series.map(p => `<tr><td>${escapeHtml(monthLabel(p.month))}</td><td style="text-align: center;">${p.days}</td>${shown.map(s => `<td style="text-align: center;">${formatNum(p[s.key])}</td><td style="text-align: center;">${formatNum(p[`${s.key}PerDay`], 1)}</td>`).join('')}</tr>`).join('');
         }
 
         // Initialize on load

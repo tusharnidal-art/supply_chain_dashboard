@@ -1,441 +1,180 @@
-# 🎯 MISB ALSILA Supply Chain Dashboard - Complete Package
+# MISB ALSILA Supply Chain Dashboard
 
-## 📦 What's Included
+A single-file dashboard that turns stock and sales data into purchase-order (PO) suggestions:
+how many cartons to order per item, how many 20ft/40ft containers that takes, and when it
+would arrive. A companion Python script does the same calculation straight from the MISB
+ALSILA Excel workbook.
 
-This package contains everything you need to upgrade from your Excel-based supply chain management to an interactive digital dashboard.
+```
+supply_chain_dashboard.html   The dashboard. Open it in a browser; no install needed.
+supply_chain_processor.py     Batch version: reads the workbook, writes PO CSV + JSON.
+samples/                      Example inventory, sales and supplier CSVs to try the upload.
+tests/                        Python unit tests and browser tests.
+```
 
-### Files in This Package
+## Quick start
 
-#### 1. **supply_chain_dashboard.jsx** (The Dashboard)
-- Interactive React application
-- 5 fully functional tabs:
-  - Dashboard: Overview & file uploads
-  - Inventory: Stock tracking with filters
-  - PO Generator: Auto-calculates purchase orders
-  - Analytics: 4-month sales trends
-  - Settings: Configure your business rules
-- Ready to use with sample data
-- Integrates with your data via CSV upload
+1. Double-click `supply_chain_dashboard.html`. It opens with built-in sample data.
+2. Look around: **Inventory** shows stock status, **PO Generator** → *Generate PO* shows
+   suggested orders, **Analytics** shows monthly sales trends.
+3. To use your own data, go to **Dashboard** and upload your files (see [Data files](#data-files)).
+   Try the files in `samples/` first to see what a good upload looks like.
 
-#### 2. **supply_chain_processor.py** (Data Processor)
-- Python script to automate data processing
-- Converts your Excel data to dashboard-ready format
-- Calculates PO quantities automatically
-- Outputs JSON and CSV formats
-- Install: `pip install pandas openpyxl numpy`
-- Run: `python supply_chain_processor.py`
+Everything runs in your browser. Uploaded data is saved in that browser only (not sent
+anywhere) and is still there next time you open the file. **Reset to sample data** removes it.
 
-#### 3. **MISB_ALSILA_Analysis.md** (Technical Analysis)
-- Complete breakdown of your Excel file
-- Sheet-by-sheet explanation
-- Formula logic and calculations
-- Data structure documentation
-- Advanced features explained
-- **Read this if:** You want to understand the technical details
+## The tabs
 
-#### 4. **QUICK_REFERENCE.md** (User Guide)
-- Beginner-friendly manual
-- Tab-by-tab instructions
-- How to interpret each metric
-- Decision guide with examples
-- Pro tips and troubleshooting
-- **Start here if:** You're new to the system
+| Tab | What it does |
+|---|---|
+| **Dashboard** | Upload files, see how many items are in each stock status, download CSV templates. |
+| **Inventory** | Stock, average daily sales and days of stock per item, filterable by supplier. The two sliders set the planning days used for POs. |
+| **PO Generator** | Suggested POs grouped by supplier, with container plan, fill %, CBM, lead time and arrival date. Filter by supplier and **Export CSV** (the export matches what is shown). |
+| **Analytics** | Average daily sales (and purchases, if the sales file has them) per month for one item or all items, with the rate currently used for POs as a dashed line. The *Trend by Item* table compares the first and last month. |
+| **Settings** | The same planning days as the sliders, the container volumes used for estimates, and the supplier list. |
 
-#### 5. **IMPLEMENTATION_GUIDE.md** (Setup & Integration)
-- Step-by-step installation instructions
-- Data preparation checklist
-- Configuration guide
-- Weekly operating procedures
-- Integration options (manual/automated/full)
-- **Follow this for:** Getting the system running
+Settings and slider positions are saved in the browser too. Moving a slider recalculates
+POs straight away.
 
-#### 6. **This File (README.md)**
-- Overview of entire package
-- Quick start instructions
-- Key features summary
+## How the numbers are worked out
 
----
+All quantities are in **cartons**.
 
-## ⚡ Quick Start (5 Minutes)
+**Average daily sales** = total sales in the sales file ÷ days the file covers (first to last
+date, or the full calendar months listed). Days with no row count as zero sales.
 
-### Option A: Use Dashboard Immediately (No Installation)
-1. Go to https://codesandbox.io
-2. Create new React project
-3. Paste code from `supply_chain_dashboard.jsx`
-4. Start exploring with sample data
+**Days of stock** = current stock ÷ average daily sales.
 
-### Option B: Install Locally (If comfortable with tech)
+| Status | Days of stock |
+|---|---|
+| CRITICAL | under 10 |
+| LOW | 10 – 20 |
+| OPTIMAL | 20 – 90 |
+| HIGH | over 90 |
+| NO SALES | item has no sales, so no PO is suggested |
+
+**PO quantity**
+
+```
+Days needed  = inventory days + lead time + safety days          30 + 80 + 7 = 117
+Required qty = avg daily sales × days needed, rounded UP to a     85 × 117 = 9,945 → 10,350
+               multiple of MOQ                                    (23 × 450)
+PO qty       = required qty − current stock (0 if negative)       10,350 − 2,500 = 7,850
+```
+
+Note the PO quantity itself is not rounded to the MOQ (7,850 above is not a multiple of 450).
+
+**Containers.** Capacity is cartons per container, from the item's `20ft` / `40ft` values.
+- If the item or its supplier has a container type, only that size is used.
+- Otherwise 40ft containers are filled and a remainder that fits goes in one 20ft;
+  a bigger remainder takes another 40ft.
+- If an item has no capacity values, capacity is estimated as usable container volume ÷
+  carton volume (defaults 28 m³ for 20ft and 58 m³ for 40ft, editable in Settings), and the
+  PO shows **est.**
+
+Example: 7,850 ÷ 2,100 per 40ft → 4 × 40ft, 93% full.
+
+**CBM** = cartons × pieces per carton (`Base_Qty`) × CBM per piece.
+Example: 7,850 × 24 × 0.00128 = 241.15 m³. (Check: 2,100 cartons × 24 × 0.00128 ≈ 64.5 m³,
+about one 40ft container.) If you have volume per carton instead, use a `CBM_Per_Carton` column.
+
+**Arrival date** = today + lead time.
+
+## Data files
+
+Upload CSV (comma, semicolon or tab separated) or Excel (`.xlsx`, `.xls`, `.xlsm`). Excel
+needs an internet connection the first time, to load the Excel reader; CSV works fully offline.
+
+- Column names are matched loosely: `Item Code`, `Item_Code` and `ItemCode` all work, and so do
+  the MISB names such as `Qty(Ctn)`, `VendorCode`, `Transit Time(Days)`, `BaseQty`, `40ft`.
+- The header row can be anywhere in the first 15 rows. In a workbook, the first sheet with the
+  required columns is used.
+- After each upload the box says what was loaded, which rows were skipped and why, and what was
+  assumed (for example a missing MOQ treated as 1).
+
+### Inventory (required)
+
+```
+Item_Code,Item_Name,Current_Qty,Supplier_Code,MOQ,Lead_Time,Container_Type,Base_Qty,CBM,20ft,40ft
+321601,Richina Basil Seed-Mango-290ml X 24,2500,V20183,450,80,40ft,24,0.00128,1000,2100
+120405,Farm Fresh Chakki Fresh (Atta)-5Kg X 4,2472,V20185,1000,7,20ft,4,0.025,,
+```
+
+| Column | Required | Notes |
+|---|---|---|
+| `Item_Code` | yes | |
+| `Current_Qty` | yes | cartons. Also accepted: `Qty(Ctn)`, `Stock`, `Balance` |
+| `Item_Name` | | |
+| `Supplier_Code` / `Supplier_Name` | | links the item to a supplier |
+| `MOQ` | | cartons; 1 if missing |
+| `Lead_Time` | | days; overrides the supplier's lead time |
+| `Container_Type` | | `20ft` or `40ft`; blank = mix as needed |
+| `20ft`, `40ft` | | cartons per container |
+| `Base_Qty`, `CBM` | | pieces per carton, CBM per piece (or `CBM_Per_Carton`) |
+| `Avg_Daily` | | used only if there is no sales file |
+
+### Sales (needed for POs)
+
+```
+Date,Item_Code,Purchases,Sales
+2025-12-01,321601,1130,85
+2025-12-02,321601,0,86
+```
+
+- Required: `Item_Code`, `Sales` (also accepted: `DEC`), and either `Date` or `Month`.
+- Dates: `YYYY-MM-DD` or `DD/MM/YYYY` (03/04/2026 is 3 April). Months: `Feb 2026` or `2026-02`,
+  one row per item per month.
+- `Purchases` (or `INC`) is optional and only used for the Analytics chart.
+- Use about the last 3 months, so the average reflects current demand.
+
+### Suppliers (optional)
+
+```
+Supplier_Code,Supplier_Name,Lead_Time,Container_Type
+V20183,YU DAT BS,80,40ft
+V20185,Local Supplier A,7,20ft
+```
+
+Without this file, suppliers are taken from the inventory file and each item needs its own
+`Lead_Time`.
+
+## Python processor
+
+For working directly from the workbook (`024_MISB_ALSILA_Supply_Chain_Final.xlsm`). It uses the
+same rules as the dashboard, except it has no container-type column to read, so it always mixes
+40ft + 20ft.
+
 ```bash
-npm install -g create-react-app
-create-react-app supply-chain-app
-cd supply-chain-app
-# Copy supply_chain_dashboard.jsx to src/App.jsx
-npm install lucide-react
-npm start
+pip install -r requirements.txt
+python supply_chain_processor.py 024_MISB_ALSILA_Supply_Chain_Final.xlsm \
+    --inventory-days 30 --safety-days 7 --months 3
 ```
 
----
+It writes `po_orders_export.csv` and JSON files in `./data/` (`--csv` and `--output-dir` change
+these) and prints a summary.
 
-## 🎯 Key Features
+Sheets it reads:
 
-### 1. **Automatic PO Calculation**
-- Based on: Average daily sales + Desired inventory days + Lead time
-- Respects: MOQ (minimum orders) + Container capacities
-- Smart allocation: 20ft vs 40ft containers
-- Output: Ready-to-send purchase orders
+| Sheet | Header row | Used for |
+|---|---|---|
+| `ItemData` | 1 | `Item Code`, `Item Name`, `BaseQty`, `40ft`, `20ft`, `cbm`, `Supplier Name`, `VendorCode`, `MOQ`, `Transit Time(Days)` |
+| `MisbWH` | 2 | current stock: `Item Code`, `Qty(Ctn)` |
+| `LocalItemReport` | 4 | sales: `Code`, then `BAL` / `INC` / `DEC` columns repeated once per month; the last `--months` `DEC` columns are averaged (30 days per month) |
 
-### 2. **Inventory Status Monitoring**
-```
-🔴 CRITICAL (< 10 days supply) → Order immediately
-🟠 LOW (10-20 days)            → Order this week  
-🟢 OPTIMAL (20-90 days)        → Normal situation
-🔵 HIGH (> 90 days)            → May be overstocked
-```
+## Tests
 
-### 3. **Supplier Management**
-- Filter inventory by supplier
-- Track lead times (5-80 days)
-- Container type assignment (20ft/40ft)
-- Cost consolidation opportunities
-
-### 4. **Sales Analytics**
-- 4-month purchase vs sales comparison
-- Trend identification (increasing/decreasing demand)
-- Monthly balance tracking
-- Data-driven decision support
-
-### 5. **Dynamic Settings**
-- Adjust "Days Inventory Needed" (7-90 days) - affects all calculations
-- Adjust "Safety Stock Days" (3-30 days) - minimum buffer
-- All changes update PO quantities in real-time
-
----
-
-## 📊 How It Works
-
-### The PO Calculation Formula
-
-```
-Days Needed = Inventory Days + Lead Time + Safety Buffer
-Example: 30 + 80 + 7 = 117 days
-
-Required Qty = (Avg Daily Sales × Days Needed) rounded UP to a multiple of MOQ
-Example: (85 ctn/day × 117 days) = 9,945 ctn
-Round up to MOQ 450: = 10,350 ctn (23 × 450)
-
-PO Qty = Required Qty - Current Stock (if positive)
-Example: 10,350 - 2,500 = 7,850 ctn to order
-
-Containers = PO Qty ÷ Container Capacity (cartons per container)
-Example: 7,850 ÷ 2,100 per 40ft = 3.7 → 4 × 40ft (93% full)
-
-Total CBM = PO Qty × Base Qty × CBM per piece
-Example: 7,850 × 24 × 0.00128 = 241.15 CBM
+```bash
+python -m unittest discover tests      # Python processor (needs requirements.txt)
+npm install && npm test                # dashboard in a headless browser (needs Node 18+)
 ```
 
-All quantities are in **cartons**. `CBM` is the volume of one piece and `Base Qty` is pieces per
-carton (as in the ItemData sheet); you can instead give `CBM_Per_Carton`.
-
-**Container choice:** if the item or its supplier has a container type (20ft/40ft), only that size
-is used. Otherwise 40ft containers are filled and any remainder that fits goes in one 20ft.
-If an item has no 20ft/40ft capacity, capacity is estimated from its carton volume and the usable
-container volume in Settings (default 28 / 58 CBM), and the PO shows "est.".
-
-**Status:** CRITICAL < 10 days, LOW 10–20, OPTIMAL 20–90, HIGH > 90 days of stock. Items with no
-sales show NO SALES and get no PO.
-
----
-
-## 🔄 Typical Weekly Workflow
-
-### Monday
-- Export inventory from warehouse/ERP system
-- Upload to Dashboard
-- Check for CRITICAL items (red flags)
-
-### Tuesday-Wednesday
-- Review sales trends (Analytics tab)
-- Adjust settings if needed
-- Generate POs for critical items
-
-### Thursday
-- Send approved POs to suppliers
-- Update order tracking
-
-### Friday
-- Receive incoming shipments
-- Update inventory
-- Plan next week orders
-
----
-
-## 📋 Before You Start
-
-### Data You'll Need
-1. **Last 3 months of sales data**
-   - Item Code, Date, Daily Sales, Purchases, Balance
-
-2. **Current inventory counts**
-   - Item Code, Current Quantity, Supplier, Lead Time
-
-3. **Supplier information**
-   - Code, Name, Lead Time (days), Container Type
-
-4. **Product specifications**
-   - MOQ, CBM per unit, 20ft/40ft container capacities
-
-### Estimated Setup Time
-- **Data preparation:** 1-2 hours
-- **Dashboard installation:** 15 minutes
-- **Configuration:** 30 minutes
-- **Team training:** 1-2 hours
-- **Total:** 3-4 hours to fully operational
-
----
-
-## 🎓 Learning Path
-
-### For Beginners (No Tech Background)
-1. Read QUICK_REFERENCE.md completely (30 min)
-2. Open dashboard and explore each tab (20 min)
-3. Try uploading sample CSV files (15 min)
-4. Generate test POs and review (15 min)
-5. Total: ~80 minutes to confident basic use
-
-### For Advanced Users
-1. Read MISB_ALSILA_Analysis.md for formulas (45 min)
-2. Study supply_chain_processor.py code (30 min)
-3. Set up automated data pipeline (1-2 hours)
-4. Configure advanced settings (30 min)
-5. Total: 2.5-3 hours
-
----
-
-## 🔧 System Requirements
-
-### To Use the Dashboard
-- Modern web browser (Chrome, Firefox, Safari, Edge)
-- Internet connection (for online version)
-- No additional software needed
-
-### To Run Data Processor (Optional)
-- Python 3.7 or newer
-- pandas library: `pip install pandas`
-- openpyxl library: `pip install openpyxl`
-- numpy library: `pip install numpy`
-- Takes ~1 minute per run
-
----
-
-## 💡 Key Differences from Your Excel
-
-| Feature | Your Excel | Dashboard |
-|---------|---|---|
-| PO Calculation | Complex formulas | One-click automatic |
-| Lead Time Lookup | Manual VLOOKUP | Auto-populated from master |
-| Container Calculation | Manual math | Automatic optimization |
-| Sales Analysis | Scroll through sheets | Consolidated view |
-| Supplier Filter | Sort/filter manually | Dropdown filter |
-| Adjustable Settings | Hard-coded formulas | Dynamic sliders |
-| Visual Status | Color-coded manually | Auto-colored status |
-| Multi-item POs | Combine manually | Auto-consolidated |
-| Mobile Access | Limited | Full access |
-| Data Updates | Manual file management | Drag-and-drop upload |
-
----
-
-## 📞 Support & Help
-
-### If Dashboard Won't Load
-1. Clear browser cache (Ctrl+Shift+Del)
-2. Try different browser
-3. Check internet connection
-4. Verify file was copied correctly
-
-### If Data Doesn't Match
-1. Check that CSV columns are named correctly
-2. Verify data format matches examples
-3. Look for missing or invalid data
-4. See Troubleshooting in IMPLEMENTATION_GUIDE.md
-
-### If Calculations Seem Wrong
-1. Review average daily sales calculation
-2. Verify supplier lead times
-3. Check MOQ values
-4. Confirm current inventory quantities
-
----
-
-## 🚀 Next Steps
-
-### 1. Read Documentation (Choose One)
-- **Quick & Easy:** QUICK_REFERENCE.md (30 min)
-- **Comprehensive:** IMPLEMENTATION_GUIDE.md (45 min)
-- **Technical Deep Dive:** MISB_ALSILA_Analysis.md (60 min)
-
-### 2. Set Up Dashboard
-- Install or access online (15 min)
-- Explore with sample data (15 min)
-- Test calculations with known values (15 min)
-
-### 3. Prepare Your Data
-- Export 3 months sales history (30 min)
-- Get current inventory count (30 min)
-- Create supplier master list (20 min)
-- Format as CSV files (15 min)
-
-### 4. Upload & Configure
-- Upload your data to Dashboard (5 min)
-- Set inventory days setting (5 min)
-- Set safety stock days (5 min)
-- Generate test POs (10 min)
-
-### 5. Go Live
-- Compare POs with your Excel (30 min)
-- Make any adjustments (15 min)
-- Train team on new system (1-2 hours)
-- Use for real PO generation
-
-### Total Time to Operational: 3-4 hours
-
----
-
-## 🎯 Expected Benefits
-
-After implementation, you should see:
-
-✅ **40% time reduction** in PO generation  
-✅ **50% fewer stockouts** with automatic alerts  
-✅ **30% reduction in excess inventory** via better forecasting  
-✅ **Improved supplier relationships** with consistent, accurate orders  
-✅ **Data-driven decisions** based on actual sales trends  
-✅ **Mobile access** to critical inventory information  
-✅ **Better cost control** through optimized container filling  
-✅ **Reduced human error** in calculations  
-
----
-
-## 📈 Continuous Improvement
-
-### First Month
-- Get comfortable with daily operations
-- Compare results with Excel system
-- Make minor adjustments as needed
-- Gather team feedback
-
-### Second Month  
-- Optimize settings based on actual results
-- Set up automated data exports if possible
-- Track success metrics
-- Document any custom changes
-
-### Ongoing
-- Monthly supplier performance review
-- Quarterly adjustment of safety stock levels
-- Seasonal demand forecasting updates
-- Annual complete system audit
-
----
-
-## 🔐 Important Notes
-
-⚠️ **Data Backup:** Keep regular backups of your CSV export files
-
-⚠️ **Data Validation:** Always verify initial upload gives expected results
-
-⚠️ **Supplier Communication:** Confirm all lead times directly with suppliers
-
-⚠️ **Inventory Accuracy:** Dashboard is only as good as your inventory data
-
-⚠️ **Manual Override:** Always review POs before sending (system isn't perfect)
-
----
-
-## 📚 File Organization
-
-```
-📦 MISB_ALSILA_Dashboard_Package
-├── 📄 README.md (this file)
-├── 📄 QUICK_REFERENCE.md (user guide)
-├── 📄 IMPLEMENTATION_GUIDE.md (setup guide)
-├── 📄 MISB_ALSILA_Analysis.md (technical docs)
-├── 💻 supply_chain_dashboard.jsx (the dashboard)
-└── 🐍 supply_chain_processor.py (data processor)
-```
-
----
-
-## 🎓 Sample Data Guide
-
-The dashboard comes with sample data:
-- **5 products** from your current Excel file
-- **4 suppliers** (Vietnam-based + Local)
-- **3 months of sales history** for trends
-- **Lead times** from 5-80 days
-
-Use sample data first to understand how it works, then replace with your actual data.
-
----
-
-## 📧 Quick Answers
-
-**Q: Do I need to install anything?**  
-A: No! Use CodeSandbox online version, or simple Node.js install if you prefer local.
-
-**Q: What if my data is in Excel, not CSV?**  
-A: Use the Python processor to convert automatically, or Excel's "Save As CSV" feature.
-
-**Q: Can I use this offline?**  
-A: Yes! Once installed locally, works completely offline.
-
-**Q: How often should I update data?**  
-A: Daily for inventory, 3x daily during high-volume periods.
-
-**Q: What if I don't have 3 months of history?**  
-A: System works with any historical data. Use what you have.
-
-**Q: Can multiple people use it?**  
-A: Yes! Deploy online, share link, everyone accesses simultaneously.
-
----
-
-## ✨ Success Criteria
-
-Your implementation is successful when:
-
-✅ All team members can generate a PO in under 10 minutes  
-✅ PO quantities match your expectations  
-✅ No critical items show status more than once per week  
-✅ Suppliers receive orders before stock runs out  
-✅ Container utilization is >80%  
-✅ Actual lead times match dashboard assumptions  
-✅ Dashboard data updates happen daily  
-
----
-
-## 🎉 You're Ready!
-
-You now have a complete, professional supply chain management system.
-
-**Start with:** QUICK_REFERENCE.md  
-**Then follow:** IMPLEMENTATION_GUIDE.md  
-**Deep dive:** MISB_ALSILA_Analysis.md  
-
----
-
-**Last Updated:** May 2026  
-**Version:** 1.0 - Interactive Dashboard  
-**Status:** Production Ready  
-
-**Good luck! 🚀**
-
----
-
-## 📞 Contact & Support
-
-For questions about:
-- **Dashboard usage** → See QUICK_REFERENCE.md
-- **Setup & installation** → See IMPLEMENTATION_GUIDE.md  
-- **Technical details** → See MISB_ALSILA_Analysis.md
-- **Python processor** → Check Python script comments
-
+`npm install` downloads Playwright; run `npx playwright install chromium` once if you don't
+already have a Playwright browser, or set `CHROMIUM_PATH` to an existing Chromium.
+
+## Good practice
+
+- Upload fresh inventory at least weekly, and before every ordering round.
+- Check CRITICAL and LOW items first; review every PO before sending it to a supplier.
+- Watch for **est.** container plans and fill % well under 100%. Adding the real 20ft/40ft
+  capacities to the inventory file makes container plans exact.
+- Compare actual supplier lead times with the ones in your files every few months.

@@ -4,9 +4,12 @@ MISB ALSILA Supply Chain Data Processor
 Converts Excel data to JSON for interactive dashboard
 """
 
-import pandas as pd
+import argparse
 import json
 import math
+import sys
+
+import pandas as pd
 from datetime import datetime, timedelta
 from pathlib import Path
 import numpy as np
@@ -335,7 +338,7 @@ class SupplyChainProcessor:
         """Export processed data to JSON files"""
         print(f"\n[5] Exporting Data to JSON...")
         
-        Path(output_dir).mkdir(exist_ok=True)
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
         
         # Items master
         with open(f'{output_dir}/items.json', 'w') as f:
@@ -430,44 +433,51 @@ class SupplyChainProcessor:
         print("\n" + "="*60)
 
 
-def main():
+def main(argv=None):
     """Main processing function"""
-    
-    # Example usage
+    parser = argparse.ArgumentParser(description='Calculate purchase orders from the MISB ALSILA workbook.')
+    parser.add_argument('excel_file', nargs='?', default='024_MISB_ALSILA_Supply_Chain_Final.xlsm',
+                        help='workbook with ItemData, MisbWH and LocalItemReport sheets')
+    parser.add_argument('--inventory-days', type=int, default=30, help='days of inventory to maintain (default 30)')
+    parser.add_argument('--safety-days', type=int, default=7, help='safety stock buffer in days (default 7)')
+    parser.add_argument('--months', type=int, default=3, help='months of sales history to average (default 3)')
+    parser.add_argument('--output-dir', default='./data', help='folder for the JSON files (default ./data)')
+    parser.add_argument('--csv', default='po_orders_export.csv', help='PO CSV file to write')
+    args = parser.parse_args(argv)
+
     processor = SupplyChainProcessor()
-    
-    # Path to your Excel file
-    excel_file = '024_MISB_ALSILA_Supply_Chain_Final.xlsm'
     
     try:
         # Step 1: Read Excel
-        processor.read_excel_file(excel_file)
+        processor.read_excel_file(args.excel_file)
         
         # Step 2: Process all data
         processor.process_item_master()
         processor.process_current_inventory()
-        processor.calculate_average_daily_sales(months=3)
+        processor.calculate_average_daily_sales(months=args.months)
         
         # Step 3: Calculate POs with custom settings
         processor.calculate_po_quantities(
-            inventory_days=30,      # Days of inventory to maintain
-            safety_stock_days=7     # Safety stock buffer
+            inventory_days=args.inventory_days,
+            safety_stock_days=args.safety_days
         )
         
         # Step 4: Export results
-        summary = processor.export_json()
-        processor.export_csv('po_orders_export.csv')
+        processor.export_json(args.output_dir)
+        processor.export_csv(args.csv)
         
         # Step 5: Print summary
         processor.print_summary()
         
         print("\n✓ Processing complete!")
+        return 0
         
     except Exception as e:
         print(f"\n✗ Error: {str(e)}")
         import traceback
         traceback.print_exc()
+        return 1
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
